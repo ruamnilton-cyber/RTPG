@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #c99a2e;
+  --color-secondary: #f3e1a8;
+  --color-accent: #f4c857;
+  --color-background: #0f0f10;
+  --color-surface: #1b1b1f;
+  --color-surface-alt: #24252b;
+  --color-menu: #111214;
+  --color-text: #f9f3e4;
+  --color-muted: #b8b0a1;
+  --color-border: #3a3a40;
+  --color-badge: #2e2a1a;
+  --color-on-primary: #111827;
+  --color-on-accent: #111827;
+  --color-on-badge: #f9f3e4;
+  --color-on-menu: #f9f3e4;
+  --color-menu-muted: color-mix(in srgb, #ffffff 76%, transparent);
+  font-family: "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--color-background);
+  color: var(--color-text);
+}
+
+.card {
+  @apply rounded-2xl p-5 shadow-card;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-primary {
+  @apply rounded-xl px-4 py-2 font-semibold transition disabled:cursor-not-allowed disabled:opacity-60;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.btn-secondary {
+  @apply rounded-xl px-4 py-2 font-semibold transition;
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.input {
+  @apply w-full rounded-xl px-3 py-2 text-sm outline-none;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-alt);
+  color: var(--color-text);
+}
+
+.label {
+  @apply mb-1 block text-sm font-medium;
+  color: var(--color-muted);
+}
+
+.table-base {
+  @apply w-full border-collapse text-sm;
+}
+
+.table-base th {
+  @apply px-3 py-2 text-left font-semibold;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-muted);
+}
+
+.table-base td {
+  @apply px-3 py-2 align-top;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 65%, transparent);
+}
+
+.surface-soft {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+}
+
+.badge-soft {
+  background: var(--color-badge);
+  color: var(--color-on-badge);
+}
+
+.text-muted {
+  color: var(--color-muted);
+}
+
+.theme-shell {
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--color-primary) 30%, transparent), transparent 35%),
+    linear-gradient(180deg, color-mix(in srgb, var(--color-background) 92%, #000000 8%), var(--color-background));
+}

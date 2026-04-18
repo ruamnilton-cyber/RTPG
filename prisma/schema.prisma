@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  OPERADOR
+}
+
+enum ProductUnit {
+  UNIDADE
+  PORCAO
+  COPO
+  GARRAFA
+}
+
+enum SupplyUnit {
+  UNIDADE
+  KG
+  G
+  L
+  ML
+}
+
+enum InventoryMovementType {
+  COMPRA
+  AJUSTE
+  BAIXA_VENDA
+}
+
+enum TableStatus {
+  LIVRE
+  OCUPADA
+  AGUARDANDO_FECHAMENTO
+}
+
+enum TableSessionStatus {
+  ABERTA
+  AGUARDANDO_FECHAMENTO
+  FECHADA
+}
+
+enum WaiterCallStatus {
+  PENDENTE
+  ATENDIDO
+}
+
+model User {
+  id           String      @id @default(cuid())
+  name         String
+  email        String      @unique
+  passwordHash String
+  role         UserRole
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  sales        Sale[]
+  sessions     TableSession[]
+  logs         ActionLog[]
+  bars         UserBar[]
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id             String             @id @default(cuid())
+  name           String
+  categoryId     String?
+  category       ProductCategory?   @relation(fields: [categoryId], references: [id])
+  salePrice      Float
+  saleUnit       ProductUnit
+  active            Boolean              @default(true)
+  description       String?
+  recipeItems       ProductRecipe[]
+  saleItems         SaleItem[]
+  tableItems        TableSessionItem[]
+  whatsappOrderItems WhatsappOrderItem[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model Supply {
+  id              String              @id @default(cuid())
+  name            String              @unique
+  unit            SupplyUnit
+  averageCost     Float               @default(0)
+  stockCurrent    Float               @default(0)
+  stockMinimum    Float               @default(0)
+  active          Boolean             @default(true)
+  recipeItems     ProductRecipe[]
+  purchases       InventoryEntry[]
+  movements       InventoryMovement[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+}
+
+model ProductRecipe {
+  id               String   @id @default(cuid())
+  productId        String
+  supplyId         String
+  quantityRequired Float
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supply           Supply   @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplyId])
+}
+
+model InventoryEntry {
+  id            String    @id @default(cuid())
+  supplyId      String
+  quantity      Float
+  totalCost     Float
+  unitCost      Float
+  purchasedAt   DateTime
+  supplierName  String?
+  notes         String?
+  supply        Supply    @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+}
+
+model InventoryMovement {
+  id            String                 @id @default(cuid())
+  supplyId      String
+  type          InventoryMovementType
+  quantity      Float
+  previousStock Float
+  currentStock  Float
+  reason        String
+  referenceId   String?
+  createdAt     DateTime               @default(now())
+  supply        Supply                 @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+}
+
+model RestaurantTable {
+  id           String           @id @default(cuid())
+  number       Int              @unique
+  name         String
+  status       TableStatus      @default(LIVRE)
+  qrCodeToken  String           @unique
+  sessions     TableSession[]
+  calls        WaiterCall[]
+  createdAt    DateTime         @default(now())
+}
+
+model TableSession {
+  id             String              @id @default(cuid())
+  tableId        String
+  userId         String
+  status         TableSessionStatus  @default(ABERTA)
+  notes          String?
+  openedAt       DateTime            @default(now())
+  closedAt       DateTime?
+  subtotal       Float               @default(0)
+  table          RestaurantTable     @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items          TableSessionItem[]
+  sale           Sale?
+}
+
+model TableSessionItem {
+  id             String       @id @default(cuid())
+  tableSessionId String
+  productId      String
+  quantity       Int
+  unitPrice      Float
+  notes          String?
+  createdAt      DateTime     @default(now())
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Sale {
+  id                String      @id @default(cuid())
+  tableSessionId    String?     @unique
+  userId            String
+  grossAmount       Float
+  deductionsAmount  Float       @default(0)
+  netAmount         Float
+  costAmount        Float       @default(0)
+  finalAmount       Float
+  soldAt            DateTime    @default(now())
+  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tableSession      TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
+  items             SaleItem[]
+}
+
+model SaleItem {
+  id          String   @id @default(cuid())
+  saleId      String
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  costAmount  Float    @default(0)
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model ExpenseCategory {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  expenses  Expense[]
+  createdAt DateTime  @default(now())
+}
+
+model Expense {
+  id          String           @id @default(cuid())
+  categoryId  String
+  description String
+  amount      Float
+  expenseDate DateTime
+  notes       String?
+  category    ExpenseCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime         @default(now())
+}
+
+model WaiterCall {
+  id          String            @id @default(cuid())
+  tableId     String
+  status      WaiterCallStatus  @default(PENDENTE)
+  message     String?
+  createdAt   DateTime          @default(now())
+  handledAt   DateTime?
+  table       RestaurantTable   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+}
+
+model ActionLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String?
+  description String?
+  createdAt   DateTime  @default(now())
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Multi-tenant (Bar) ──────────────────────────────────────────────────────
+
+model Bar {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  active    Boolean   @default(true)
+  phone     String?
+  address   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  users                UserBar[]
+  whatsappConversations WhatsappConversation[]
+  whatsappOrders       WhatsappOrder[]
+}
+
+model UserBar {
+  id     String @id @default(cuid())
+  userId String
+  barId  String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bar    Bar    @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, barId])
+}
+
+// ─── WhatsApp ─────────────────────────────────────────────────────────────────
+
+enum WhatsappOrderStatus {
+  NOVO
+  AGUARDANDO_PAGAMENTO
+  AGUARDANDO_CONFERENCIA
+  CONFIRMADO
+  CANCELADO
+}
+
+model WhatsappConversation {
+  id            String    @id @default(cuid())
+  barId         String
+  phone         String
+  customerName  String?
+  state         String    @default("IDLE")
+  context       String?
+  lastOrderId   String?
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bar           Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([barId, phone])
+}
+
+model WhatsappOrder {
+  id            String              @id @default(cuid())
+  barId         String
+  phone         String
+  customerName  String?
+  channel       String              @default("WHATSAPP")
+  status        WhatsappOrderStatus @default(NOVO)
+  totalAmount   Float               @default(0)
+  notes         String?
+  paymentStatus String              @default("PENDENTE")
+  confirmedBy   String?
+  confirmedAt   DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  bar           Bar                 @relation(fields: [barId], references: [id], onDelete: Cascade)
+  items         WhatsappOrderItem[]
+  paymentLinks  PaymentLink[]
+}
+
+model WhatsappOrderItem {
+  id          String        @id @default(cuid())
+  orderId     String
+  productId   String?
+  productName String
+  quantity    Int           @default(1)
+  unitPrice   Float
+  totalPrice  Float
+  notes       String?
+  createdAt   DateTime      @default(now())
+  order       WhatsappOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product?      @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model PaymentLink {
+  id        String        @id @default(cuid())
+  orderId   String
+  url       String
+  amount    Float
+  status    String        @default("PENDENTE")
+  expiresAt DateTime?
+  paidAt    DateTime?
+  createdAt DateTime      @default(now())
+  order     WhatsappOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
