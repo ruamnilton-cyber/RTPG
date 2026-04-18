@@ -1,0 +1,182 @@
+import { FormEvent, useEffect, useState } from "react";
+import { PageHeader } from "../components/common";
+import { apiRequest } from "../lib/api";
+import { formatMoney } from "../lib/format";
+import { useAuth } from "../state/auth";
+
+type Supply = {
+  id: string;
+  name: string;
+  unit: string;
+  averageCost: number;
+  stockCurrent: number;
+  stockMinimum: number;
+  active: boolean;
+};
+
+const initialForm = { name: "", unit: "UNIDADE", averageCost: 0, stockCurrent: 0, stockMinimum: 0, active: true };
+
+export function SuppliesPage() {
+  const { token, user } = useAuth();
+  const [supplies, setSupplies] = useState<Supply[]>([]);
+  const [search, setSearch] = useState("");
+  const [form, setForm] = useState(initialForm);
+
+  async function load() {
+    setSupplies(await apiRequest<Supply[]>(`/catalog/supplies?search=${encodeURIComponent(search)}`, { token }));
+  }
+
+  useEffect(() => {
+    load();
+  }, [token, search]);
+
+  async function handleCreate(event: FormEvent) {
+    event.preventDefault();
+    await apiRequest("/catalog/supplies", { method: "POST", token, body: form });
+    setForm(initialForm);
+    load();
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm("Excluir este insumo?")) return;
+    await apiRequest(`/catalog/supplies/${id}`, { method: "DELETE", token });
+    load();
+  }
+
+  async function handleUpdate(supply: Supply) {
+    const name = window.prompt("Nome do insumo", supply.name);
+    if (!name) return;
+    const averageCost = window.prompt("Custo medio", String(supply.averageCost));
+    if (!averageCost) return;
+    await apiRequest(`/catalog/supplies/${supply.id}`, {
+      method: "PUT",
+      token,
+      body: {
+        name,
+        unit: supply.unit,
+        averageCost: Number(averageCost),
+        stockCurrent: Number(supply.stockCurrent),
+        stockMinimum: Number(supply.stockMinimum),
+        active: supply.active
+      }
+    });
+    load();
+  }
+
+  return (
+    <div className="space-y-5">
+      <PageHeader title="Insumos" subtitle="Controle dos ingredientes e materiais usados nas receitas." />
+      <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+        <form onSubmit={handleCreate} className="card space-y-4">
+          <h3 className="text-lg font-bold">Novo insumo</h3>
+
+          <label>
+            <span className="label">Nome do insumo</span>
+            <input
+              className="input"
+              placeholder="Ex.: Camarao limpo, Batata palito, Oleo"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+            />
+            <span className="field-hint">Esse nome vai aparecer no estoque, nas compras e na ficha tecnica.</span>
+          </label>
+
+          <label>
+            <span className="label">Unidade de medida</span>
+            <select className="input" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}>
+              <option value="UNIDADE">Unidade</option>
+              <option value="KG">Kg</option>
+              <option value="G">g</option>
+              <option value="L">L</option>
+              <option value="ML">ml</option>
+            </select>
+            <span className="field-hint">Escolha como esse insumo e comprado ou consumido.</span>
+          </label>
+
+          <label>
+            <span className="label">Custo medio</span>
+            <input
+              className="input"
+              type="number"
+              step="0.0001"
+              placeholder="Ex.: 38,50"
+              value={form.averageCost}
+              onChange={(e) => setForm({ ...form, averageCost: Number(e.target.value) })}
+            />
+            <span className="field-hint">Valor medio pago por uma unidade de medida desse insumo.</span>
+          </label>
+
+          <label>
+            <span className="label">Estoque atual</span>
+            <input
+              className="input"
+              type="number"
+              step="0.0001"
+              placeholder="Quantidade disponivel agora"
+              value={form.stockCurrent}
+              onChange={(e) => setForm({ ...form, stockCurrent: Number(e.target.value) })}
+            />
+            <span className="field-hint">Quantidade que voce tem disponivel neste momento.</span>
+          </label>
+
+          <label>
+            <span className="label">Estoque minimo</span>
+            <input
+              className="input"
+              type="number"
+              step="0.0001"
+              placeholder="Ponto de reposicao"
+              value={form.stockMinimum}
+              onChange={(e) => setForm({ ...form, stockMinimum: Number(e.target.value) })}
+            />
+            <span className="field-hint">Quando chegar nesse nivel, o sistema entende que precisa repor.</span>
+          </label>
+
+          <button className="btn-primary" disabled={user?.role !== "ADMIN"}>Cadastrar insumo</button>
+        </form>
+
+        <div className="card">
+          <label className="mb-4 block">
+            <span className="label">Buscar insumo</span>
+            <input
+              className="input"
+              placeholder="Digite o nome do insumo que voce quer localizar"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+
+          <table className="table-base">
+            <thead>
+              <tr>
+                <th>Insumo</th>
+                <th>Unidade</th>
+                <th>Custo medio</th>
+                <th>Estoque</th>
+                <th>Minimo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {supplies.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{item.unit}</td>
+                  <td>{formatMoney(item.averageCost)}</td>
+                  <td className={Number(item.stockCurrent) <= Number(item.stockMinimum) ? "text-red-700" : ""}>
+                    {Number(item.stockCurrent).toFixed(2)}
+                  </td>
+                  <td>{Number(item.stockMinimum).toFixed(2)}</td>
+                  <td className="space-x-3">
+                    <button className="text-sm text-brand-700" onClick={() => handleUpdate(item)}>Editar</button>
+                    <button className="text-sm text-red-700" onClick={() => handleDelete(item.id)}>Excluir</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}

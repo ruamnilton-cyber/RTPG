@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  GERENTE
+  CAIXA
+  GARCOM
+  COZINHA
+  FINANCEIRO
+  OPERADOR
+}
+
+enum ProductUnit {
+  UNIDADE
+  PORCAO
+  COPO
+  GARRAFA
+}
+
+enum SupplyUnit {
+  UNIDADE
+  KG
+  G
+  L
+  ML
+}
+
+enum InventoryMovementType {
+  COMPRA
+  AJUSTE
+  BAIXA_VENDA
+}
+
+enum TableStatus {
+  LIVRE
+  OCUPADA
+  AGUARDANDO_FECHAMENTO
+}
+
+enum TableSessionStatus {
+  ABERTA
+  AGUARDANDO_FECHAMENTO
+  FECHADA
+}
+
+enum WaiterCallStatus {
+  PENDENTE
+  ATENDIDO
+}
+
+enum OrderChannel {
+  SALAO
+  BALCAO
+  DELIVERY
+  WHATSAPP
+  QR
+}
+
+enum OrderStatus {
+  ABERTO
+  CONFIRMADO
+  EM_PREPARO
+  PRONTO
+  ENTREGUE
+  AGUARDANDO_PAGAMENTO
+  FECHADO
+  CANCELADO
+}
+
+enum FinancialTitleKind {
+  PAGAR
+  RECEBER
+}
+
+enum FinancialTitleStatus {
+  PENDENTE
+  PAGO
+  VENCIDO
+  CANCELADO
+  PARCIAL
+}
+
+enum PaymentMethod {
+  PIX
+  CREDITO
+  DEBITO
+  DINHEIRO
+  OUTRO
+}
+
+enum PaymentRecordStatus {
+  PENDENTE
+  CONFIRMADO
+  CANCELADO
+}
+
+enum ExpenseGroupType {
+  OPERACIONAL
+  ADMINISTRATIVA
+  COMERCIAL
+  OUTRAS
+}
+
+model Bar {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  active    Boolean  @default(true)
+  city      String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userBars          UserBar[]
+  categories        ProductCategory[]
+  products          Product[]
+  supplies          Supply[]
+  tables            RestaurantTable[]
+  orders            Order[]
+  sales             Sale[]
+  expenseCategories ExpenseCategory[]
+  expenses          Expense[]
+  payables          Payable[]
+  receivables       Receivable[]
+  paymentRecords    PaymentRecord[]
+}
+
+model UserBar {
+  userId String
+  barId  String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bar    Bar  @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@id([userId, barId])
+}
+
+model User {
+  id           String         @id @default(cuid())
+  name         String
+  email        String         @unique
+  passwordHash String
+  role         UserRole
+  active       Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  sales        Sale[]
+  sessions     TableSession[]
+  orders       Order[]
+  logs         ActionLog[]
+  userBars     UserBar[]
+}
+
+model ProductCategory {
+  id        String    @id @default(cuid())
+  name      String
+  barId     String
+  bar       Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@unique([barId, name])
+}
+
+model Product {
+  id             String             @id @default(cuid())
+  name           String
+  barId          String
+  bar            Bar                @relation(fields: [barId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       ProductCategory?   @relation(fields: [categoryId], references: [id])
+  salePrice      Float
+  saleUnit       ProductUnit
+  active         Boolean            @default(true)
+  description    String?
+  imageUrl       String?
+  recipeItems    ProductRecipe[]
+  saleItems      SaleItem[]
+  tableItems     TableSessionItem[]
+  orderItems     OrderItem[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+}
+
+model Supply {
+  id              String              @id @default(cuid())
+  name            String
+  barId           String
+  bar             Bar                 @relation(fields: [barId], references: [id], onDelete: Cascade)
+  unit            SupplyUnit
+  averageCost     Float               @default(0)
+  stockCurrent    Float               @default(0)
+  stockMinimum    Float               @default(0)
+  active          Boolean             @default(true)
+  recipeItems     ProductRecipe[]
+  purchases       InventoryEntry[]
+  movements       InventoryMovement[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([barId, name])
+}
+
+model ProductRecipe {
+  id               String   @id @default(cuid())
+  productId        String
+  supplyId         String
+  quantityRequired Float
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supply           Supply   @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplyId])
+}
+
+model InventoryEntry {
+  id            String    @id @default(cuid())
+  supplyId      String
+  quantity      Float
+  totalCost     Float
+  unitCost      Float
+  purchasedAt   DateTime
+  supplierName  String?
+  notes         String?
+  supply        Supply    @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+}
+
+model InventoryMovement {
+  id            String                 @id @default(cuid())
+  supplyId      String
+  type          InventoryMovementType
+  quantity      Float
+  previousStock Float
+  currentStock  Float
+  reason        String
+  referenceId   String?
+  createdAt     DateTime               @default(now())
+  supply        Supply                 @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+}
+
+model RestaurantTable {
+  id           String           @id @default(cuid())
+  number       Int
+  name         String
+  barId        String
+  bar          Bar              @relation(fields: [barId], references: [id], onDelete: Cascade)
+  status       TableStatus      @default(LIVRE)
+  qrCodeToken  String           @unique
+  sessions     TableSession[]
+  calls        WaiterCall[]
+  orders       Order[]
+  createdAt    DateTime         @default(now())
+
+  @@unique([barId, number])
+}
+
+model TableSession {
+  id             String              @id @default(cuid())
+  tableId        String
+  userId         String
+  status         TableSessionStatus  @default(ABERTA)
+  notes          String?
+  openedAt       DateTime            @default(now())
+  closedAt       DateTime?
+  subtotal       Float               @default(0)
+  orderId        String?             @unique
+  table          RestaurantTable     @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  user           User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items          TableSessionItem[]
+  sale           Sale?
+  order          Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+}
+
+model TableSessionItem {
+  id             String       @id @default(cuid())
+  tableSessionId String
+  productId      String
+  quantity       Int
+  unitPrice      Float
+  notes          String?
+  createdAt      DateTime     @default(now())
+  tableSession   TableSession @relation(fields: [tableSessionId], references: [id], onDelete: Cascade)
+  product        Product      @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Sale {
+  id                String        @id @default(cuid())
+  barId             String
+  bar               Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
+  tableSessionId    String?       @unique
+  userId            String
+  grossAmount       Float
+  deductionsAmount  Float         @default(0)
+  netAmount         Float
+  costAmount        Float         @default(0)
+  finalAmount       Float
+  soldAt            DateTime      @default(now())
+  user              User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tableSession      TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
+  items             SaleItem[]
+  receivable        Receivable?
+  payments          PaymentRecord[]
+}
+
+model SaleItem {
+  id          String   @id @default(cuid())
+  saleId      String
+  productId   String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  costAmount  Float    @default(0)
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model ExpenseCategory {
+  id        String           @id @default(cuid())
+  name      String
+  barId     String
+  bar       Bar              @relation(fields: [barId], references: [id], onDelete: Cascade)
+  groupType ExpenseGroupType @default(OPERACIONAL)
+  expenses  Expense[]
+  createdAt DateTime         @default(now())
+
+  @@unique([barId, name])
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  barId       String
+  bar         Bar             @relation(fields: [barId], references: [id], onDelete: Cascade)
+  categoryId  String
+  description String
+  amount      Float
+  expenseDate DateTime
+  notes       String?
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  payable     Payable?
+}
+
+model WaiterCall {
+  id          String            @id @default(cuid())
+  tableId     String
+  status      WaiterCallStatus  @default(PENDENTE)
+  message     String?
+  createdAt   DateTime          @default(now())
+  handledAt   DateTime?
+  table       RestaurantTable   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id                String          @id @default(cuid())
+  barId             String
+  bar               Bar             @relation(fields: [barId], references: [id], onDelete: Cascade)
+  tableId           String?
+  table             RestaurantTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableSessionId    String?         @unique
+  tableSession      TableSession?
+  createdByUserId   String?
+  createdByUser     User?           @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  channel           OrderChannel    @default(SALAO)
+  status            OrderStatus     @default(ABERTO)
+  customerName      String?
+  notes             String?
+  subtotal          Float           @default(0)
+  deductionsAmount  Float           @default(0)
+  serviceFeeAmount  Float           @default(0)
+  totalAmount       Float           @default(0)
+  openedAt          DateTime        @default(now())
+  closedAt          DateTime?
+  items             OrderItem[]
+  receivable        Receivable?
+  payments          PaymentRecord[]
+}
+
+model OrderItem {
+  id         String   @id @default(cuid())
+  orderId    String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+  notes      String?
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+}
+
+model Payable {
+  id           String               @id @default(cuid())
+  barId        String
+  bar          Bar                  @relation(fields: [barId], references: [id], onDelete: Cascade)
+  expenseId    String?              @unique
+  expense      Expense?             @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  description  String
+  category     String
+  costCenter   String               @default("OPERACAO")
+  amount       Float
+  dueDate      DateTime
+  status       FinancialTitleStatus @default(PENDENTE)
+  counterparty String               @default("")
+  notes        String               @default("")
+  createdAt    DateTime             @default(now())
+  paidAt       DateTime?
+  payments     PaymentRecord[]
+}
+
+model Receivable {
+  id           String               @id @default(cuid())
+  barId        String
+  bar          Bar                  @relation(fields: [barId], references: [id], onDelete: Cascade)
+  orderId      String?              @unique
+  order        Order?               @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  saleId       String?              @unique
+  sale         Sale?                @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  description  String
+  category     String
+  costCenter   String               @default("OPERACAO")
+  amount       Float
+  dueDate      DateTime
+  status       FinancialTitleStatus @default(PENDENTE)
+  counterparty String               @default("")
+  notes        String               @default("")
+  createdAt    DateTime             @default(now())
+  paidAt       DateTime?
+  payments     PaymentRecord[]
+}
+
+model PaymentRecord {
+  id           String              @id @default(cuid())
+  barId        String
+  bar          Bar                 @relation(fields: [barId], references: [id], onDelete: Cascade)
+  orderId      String?
+  order        Order?              @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  saleId       String?
+  sale         Sale?               @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  payableId    String?
+  payable      Payable?            @relation(fields: [payableId], references: [id], onDelete: SetNull)
+  receivableId String?
+  receivable   Receivable?         @relation(fields: [receivableId], references: [id], onDelete: SetNull)
+  method       PaymentMethod       @default(PIX)
+  amount       Float
+  status       PaymentRecordStatus @default(CONFIRMADO)
+  paidAt       DateTime?
+  notes        String?
+  createdAt    DateTime            @default(now())
+}
+
+model ActionLog {
+  id          String    @id @default(cuid())
+  userId      String?
+  action      String
+  entityType  String
+  entityId    String?
+  description String?
+  createdAt   DateTime  @default(now())
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
