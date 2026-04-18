@@ -4,6 +4,7 @@ services:
     runtime: node
     plan: starter
     region: ohio
+    repo: https://github.com/ruamnilton-cyber/profeng
     branch: codex/rtpg-transfer
     autoDeploy: true
     buildCommand: npm ci && npm run db:generate && npm run build
