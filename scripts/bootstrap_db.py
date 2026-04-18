@@ -66,6 +66,14 @@ def migrate_multi_bar(cursor) -> None:
         )
         """
     )
+    if table_exists(cursor, "User"):
+        cursor.execute(
+            """
+            INSERT OR IGNORE INTO "UserBar" ("userId", "barId")
+            SELECT "id", ? FROM "User"
+            """,
+            (default_bar_id,),
+        )
 
     for tbl in (
         "ProductCategory",

@@ -1,6 +1,6 @@
 import { getStoredBarId } from "./bar-storage";
 
-export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 const API_BASE = "/api";
 

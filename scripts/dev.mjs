@@ -7,13 +7,34 @@ const env = {
   DATABASE_URL: resolveDatabaseUrl(process.cwd())
 };
 
-const concurrentlyBin = path.resolve("node_modules", "concurrently", "dist", "bin", "concurrently.js");
 const tsxBin = path.resolve("node_modules", "tsx", "dist", "cli.mjs");
 const viteBin = path.resolve("node_modules", "vite", "bin", "vite.js");
-const child = spawn(
-  process.execPath,
-  [concurrentlyBin, `${process.execPath} ${tsxBin} server/src/index.ts`, `${process.execPath} ${viteBin}`],
-  { stdio: "inherit", shell: false, env }
-);
 
-child.on("exit", (code) => process.exit(code ?? 0));
+const children = [
+  spawn(process.execPath, [tsxBin, "server/src/index.ts"], { stdio: "inherit", shell: false, env }),
+  spawn(process.execPath, [viteBin], { stdio: "inherit", shell: false, env })
+];
+
+let shuttingDown = false;
+
+const stopAll = (code = 0) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  for (const child of children) {
+    if (!child.killed) {
+      child.kill();
+    }
+  }
+
+  process.exit(code);
+};
+
+for (const child of children) {
+  child.on("exit", (code) => {
+    stopAll(code ?? 0);
+  });
+}
+
+process.on("SIGINT", () => stopAll(0));
+process.on("SIGTERM", () => stopAll(0));

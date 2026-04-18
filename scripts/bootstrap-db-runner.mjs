@@ -3,7 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 const localPython = path.resolve(process.env.LOCALAPPDATA ?? "", "Python", "bin", "python.exe");
-const command = fs.existsSync(localPython) ? localPython : "python";
+const command = process.platform === "win32"
+  ? fs.existsSync(localPython) ? localPython : "python"
+  : "python3";
 
 const child = spawn(command, ["scripts/bootstrap_db.py"], {
   stdio: "inherit",

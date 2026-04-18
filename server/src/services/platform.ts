@@ -79,6 +79,7 @@ const DEFAULT_TITLES: FinanceTitle[] = [
 const DEFAULT_CASHIER_SESSIONS: CashierSession[] = [];
 const DEFAULT_CUSTOMERS: CustomerRecord[] = [];
 const DEFAULT_SAAS_CLIENTS: SaasClientRecord[] = [];
+type CreateSaasClientInput = Omit<SaasClientRecord, "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail">;
 
 function slugifyAccess(value: string) {
   return value
@@ -392,7 +393,7 @@ export async function saveSaasClients(clients: SaasClientRecord[]) {
   return clients;
 }
 
-export async function createSaasClient(input: Omit<SaasClientRecord, "id" | "createdAt">) {
+export async function createSaasClient(input: CreateSaasClientInput) {
   const current = await getSaasClients();
   const desiredLogin = slugifyAccess(input.accessLogin || input.businessName) || `cliente${current.length + 1}`;
   const defaultBusinessName = input.businessName?.trim() || `Restaurante ${desiredLogin}`;

@@ -155,7 +155,7 @@ export function LoginPage() {
           ) : (
             <div className="mb-4">
               <label className="label">Login ou e-mail</label>
-              <input className="input" name="email" type="text" placeholder="cura1 ou admin@rtpg.local" required={mode !== "trial"} />
+              <input className="input" name="email" type="text" placeholder="cura1 ou admin@rtpg.local" required />
             </div>
           )}
 
