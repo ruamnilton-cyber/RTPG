@@ -7,6 +7,7 @@ MIGRATION_0001 = ROOT / "prisma" / "migrations" / "0001_init" / "migration.sql"
 MIGRATION_0002 = ROOT / "prisma" / "migrations" / "0002_whatsapp" / "migration.sql"
 MIGRATION_0003 = ROOT / "prisma" / "migrations" / "0003_multi_tenant" / "migration.sql"
 MIGRATION_0004 = ROOT / "prisma" / "migrations" / "0004_payments" / "migration.sql"
+MIGRATION_0005 = ROOT / "prisma" / "migrations" / "0005_fix_multitenant" / "migration.sql"
 
 
 def resolve_base_dir():
@@ -110,6 +111,16 @@ try:
         print("Migration 0004 aplicada.")
     else:
         print("Migration 0004 já aplicada.")
+
+    # ── Migration 0005: barId em Sale/Product/Expense/Supply/RestaurantTable etc. ─
+    has_sale_barid = column_exists(conn, "Sale", "barId")
+    if not has_sale_barid:
+        sql = MIGRATION_0005.read_text(encoding="utf-8")
+        conn.executescript(sql)
+        conn.commit()
+        print("Migration 0005 aplicada.")
+    else:
+        print("Migration 0005 já aplicada.")
 
     # ── Adição condicional de sortOrder em ProductCategory ───────────────────
     if not column_exists(conn, "ProductCategory", "sortOrder"):

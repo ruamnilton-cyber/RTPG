@@ -21,8 +21,8 @@ function matchFinanceTitleToBar(title: FinanceTitle, barId: string, barCode: str
 }
 
 router.get("/dashboard", async (req, res) => {
-  const bar = await prisma.bar.findUnique({ where: { id: req.barId! }, select: { code: true } });
-  const barCode = bar?.code ?? "";
+  const bar = await prisma.bar.findUnique({ where: { id: req.barId! }, select: { slug: true } });
+  const barCode = bar?.slug ?? "";
 
   const today = parseDateRange("dia");
   const [salesToday, supplies, products, openTables, financeTitles] = await Promise.all([
@@ -66,8 +66,8 @@ router.get("/dashboard", async (req, res) => {
 });
 
 router.get("/dre", async (req, res) => {
-  const bar = await prisma.bar.findUnique({ where: { id: req.barId! }, select: { code: true } });
-  const barCode = bar?.code ?? "";
+  const bar = await prisma.bar.findUnique({ where: { id: req.barId! }, select: { slug: true } });
+  const barCode = bar?.slug ?? "";
 
   const range = parseDateRange(
     req.query.period ? String(req.query.period) : undefined,

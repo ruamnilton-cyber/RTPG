@@ -27,6 +27,7 @@ router.get("/overview", async (_req, res) => {
         }
       }
     }),
+
     prisma.product.count(),
     prisma.supply.count(),
     prisma.sale.count({ where: { soldAt: { gte: thirtyDaysAgo } } }),
@@ -59,8 +60,7 @@ router.get("/overview", async (_req, res) => {
     bars: barsAll.map((b) => ({
       id: b.id,
       name: b.name,
-      code: b.code,
-      city: b.city,
+      slug: b.slug,
       active: b.active,
       products: b._count.products,
       supplies: b._count.supplies,

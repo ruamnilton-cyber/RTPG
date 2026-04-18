@@ -67,42 +67,53 @@ model User {
 
 model ProductCategory {
   id        String    @id @default(cuid())
-  name      String    @unique
+  barId     String    @default("default-bar")
+  name      String
   sortOrder Int       @default(0)
   createdAt DateTime  @default(now())
+  bar       Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
   products  Product[]
+
+  @@unique([barId, name])
 }
 
 model Product {
-  id             String             @id @default(cuid())
-  name           String
-  categoryId     String?
-  category       ProductCategory?   @relation(fields: [categoryId], references: [id])
-  salePrice      Float
-  saleUnit       ProductUnit
-  active            Boolean              @default(true)
-  description       String?
-  recipeItems       ProductRecipe[]
-  saleItems         SaleItem[]
-  tableItems        TableSessionItem[]
+  id                 String              @id @default(cuid())
+  barId              String              @default("default-bar")
+  name               String
+  categoryId         String?
+  category           ProductCategory?    @relation(fields: [categoryId], references: [id])
+  salePrice          Float
+  saleUnit           ProductUnit
+  active             Boolean             @default(true)
+  description        String?
+  imageUrl           String?
+  recipeItems        ProductRecipe[]
+  saleItems          SaleItem[]
+  tableItems         TableSessionItem[]
   whatsappOrderItems WhatsappOrderItem[]
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  bar                Bar                 @relation(fields: [barId], references: [id], onDelete: Cascade)
 }
 
 model Supply {
-  id              String              @id @default(cuid())
-  name            String              @unique
-  unit            SupplyUnit
-  averageCost     Float               @default(0)
-  stockCurrent    Float               @default(0)
-  stockMinimum    Float               @default(0)
-  active          Boolean             @default(true)
-  recipeItems     ProductRecipe[]
-  purchases       InventoryEntry[]
-  movements       InventoryMovement[]
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id            String              @id @default(cuid())
+  barId         String              @default("default-bar")
+  name          String
+  unit          SupplyUnit
+  averageCost   Float               @default(0)
+  stockCurrent  Float               @default(0)
+  stockMinimum  Float               @default(0)
+  active        Boolean             @default(true)
+  recipeItems   ProductRecipe[]
+  purchases     InventoryEntry[]
+  movements     InventoryMovement[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  bar           Bar                 @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([barId, name])
 }
 
 model ProductRecipe {
@@ -117,20 +128,20 @@ model ProductRecipe {
 }
 
 model InventoryEntry {
-  id            String    @id @default(cuid())
-  supplyId      String
-  quantity      Float
-  totalCost     Float
-  unitCost      Float
-  purchasedAt   DateTime
-  supplierName  String?
-  notes         String?
-  supply        Supply    @relation(fields: [supplyId], references: [id], onDelete: Cascade)
-  createdAt     DateTime  @default(now())
+  id           String   @id @default(cuid())
+  supplyId     String
+  quantity     Float
+  totalCost    Float
+  unitCost     Float
+  purchasedAt  DateTime
+  supplierName String?
+  notes        String?
+  supply       Supply   @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
 }
 
 model InventoryMovement {
-  id            String                 @id @default(cuid())
+  id            String                @id @default(cuid())
   supplyId      String
   type          InventoryMovementType
   quantity      Float
@@ -138,34 +149,38 @@ model InventoryMovement {
   currentStock  Float
   reason        String
   referenceId   String?
-  createdAt     DateTime               @default(now())
-  supply        Supply                 @relation(fields: [supplyId], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+  supply        Supply                @relation(fields: [supplyId], references: [id], onDelete: Cascade)
 }
 
 model RestaurantTable {
-  id           String           @id @default(cuid())
-  number       Int              @unique
-  name         String
-  status       TableStatus      @default(LIVRE)
-  qrCodeToken  String           @unique
-  sessions     TableSession[]
-  calls        WaiterCall[]
-  createdAt    DateTime         @default(now())
+  id          String         @id @default(cuid())
+  barId       String         @default("default-bar")
+  number      Int
+  name        String
+  status      TableStatus    @default(LIVRE)
+  qrCodeToken String         @unique
+  sessions    TableSession[]
+  calls       WaiterCall[]
+  createdAt   DateTime       @default(now())
+  bar         Bar            @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([barId, number])
 }
 
 model TableSession {
-  id             String              @id @default(cuid())
-  tableId        String
-  userId         String
-  status         TableSessionStatus  @default(ABERTA)
-  notes          String?
-  openedAt       DateTime            @default(now())
-  closedAt       DateTime?
-  subtotal       Float               @default(0)
-  table          RestaurantTable     @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  user           User                @relation(fields: [userId], references: [id], onDelete: Restrict)
-  items          TableSessionItem[]
-  sale           Sale?
+  id       String             @id @default(cuid())
+  tableId  String
+  userId   String
+  status   TableSessionStatus @default(ABERTA)
+  notes    String?
+  openedAt DateTime           @default(now())
+  closedAt DateTime?
+  subtotal Float              @default(0)
+  table    RestaurantTable    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  user     User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  items    TableSessionItem[]
+  sale     Sale?
 }
 
 model TableSessionItem {
@@ -181,69 +196,78 @@ model TableSessionItem {
 }
 
 model Sale {
-  id                String      @id @default(cuid())
-  tableSessionId    String?     @unique
-  userId            String
-  grossAmount       Float
-  deductionsAmount  Float       @default(0)
-  netAmount         Float
-  costAmount        Float       @default(0)
-  finalAmount       Float
-  soldAt            DateTime    @default(now())
-  user              User        @relation(fields: [userId], references: [id], onDelete: Restrict)
-  tableSession      TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
-  items             SaleItem[]
+  id               String        @id @default(cuid())
+  barId            String        @default("default-bar")
+  tableSessionId   String?       @unique
+  userId           String
+  grossAmount      Float
+  deductionsAmount Float         @default(0)
+  netAmount        Float
+  costAmount       Float         @default(0)
+  finalAmount      Float
+  soldAt           DateTime      @default(now())
+  user             User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  tableSession     TableSession? @relation(fields: [tableSessionId], references: [id], onDelete: SetNull)
+  items            SaleItem[]
+  bar              Bar           @relation(fields: [barId], references: [id], onDelete: Cascade)
 }
 
 model SaleItem {
-  id          String   @id @default(cuid())
-  saleId      String
-  productId   String
-  quantity    Int
-  unitPrice   Float
-  totalPrice  Float
-  costAmount  Float    @default(0)
-  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  id         String  @id @default(cuid())
+  saleId     String
+  productId  String
+  quantity   Int
+  unitPrice  Float
+  totalPrice Float
+  costAmount Float   @default(0)
+  sale       Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product    Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 }
 
 model ExpenseCategory {
   id        String    @id @default(cuid())
-  name      String    @unique
+  barId     String    @default("default-bar")
+  name      String
+  groupType String    @default("OPERACIONAL")
   expenses  Expense[]
   createdAt DateTime  @default(now())
+  bar       Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
+
+  @@unique([barId, name])
 }
 
 model Expense {
-  id          String           @id @default(cuid())
+  id          String          @id @default(cuid())
+  barId       String          @default("default-bar")
   categoryId  String
   description String
   amount      Float
   expenseDate DateTime
   notes       String?
-  category    ExpenseCategory  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  createdAt   DateTime         @default(now())
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  createdAt   DateTime        @default(now())
+  bar         Bar             @relation(fields: [barId], references: [id], onDelete: Cascade)
 }
 
 model WaiterCall {
-  id          String            @id @default(cuid())
-  tableId     String
-  status      WaiterCallStatus  @default(PENDENTE)
-  message     String?
-  createdAt   DateTime          @default(now())
-  handledAt   DateTime?
-  table       RestaurantTable   @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  id        String          @id @default(cuid())
+  tableId   String
+  status    WaiterCallStatus @default(PENDENTE)
+  message   String?
+  createdAt DateTime        @default(now())
+  handledAt DateTime?
+  table     RestaurantTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
 }
 
 model ActionLog {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   userId      String?
   action      String
   entityType  String
   entityId    String?
   description String?
-  createdAt   DateTime  @default(now())
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model SystemSetting {
@@ -256,18 +280,25 @@ model SystemSetting {
 // ─── Multi-tenant (Bar) ──────────────────────────────────────────────────────
 
 model Bar {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   name      String
-  slug      String    @unique
-  active    Boolean   @default(true)
+  slug      String   @unique
+  active    Boolean  @default(true)
   phone     String?
   address   String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  users                UserBar[]
+  users                 UserBar[]
   whatsappConversations WhatsappConversation[]
-  whatsappOrders       WhatsappOrder[]
+  whatsappOrders        WhatsappOrder[]
+  productCategories     ProductCategory[]
+  products              Product[]
+  supplies              Supply[]
+  tables                RestaurantTable[]
+  sales                 Sale[]
+  expenseCategories     ExpenseCategory[]
+  expenses              Expense[]
 }
 
 model UserBar {
@@ -291,17 +322,17 @@ enum WhatsappOrderStatus {
 }
 
 model WhatsappConversation {
-  id            String    @id @default(cuid())
-  barId         String
-  phone         String
-  customerName  String?
-  state         String    @default("IDLE")
-  context       String?
-  lastOrderId   String?
+  id           String    @id @default(cuid())
+  barId        String
+  phone        String
+  customerName String?
+  state        String    @default("IDLE")
+  context      String?
+  lastOrderId  String?
   lastMessageAt DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  bar           Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  bar          Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
 
   @@unique([barId, phone])
 }
@@ -352,14 +383,14 @@ model PaymentLink {
 }
 
 model TablePayment {
-  id               String    @id
-  saleId           String?
-  provider         String    @default("MERCADOPAGO")
-  externalId       String?
-  amount           Float
-  status           String    @default("PENDENTE")
-  pixQrCode        String?
-  pixQrCodeBase64  String?
-  paidAt           DateTime?
-  createdAt        DateTime  @default(now())
+  id              String    @id
+  saleId          String?
+  provider        String    @default("MERCADOPAGO")
+  externalId      String?
+  amount          Float
+  status          String    @default("PENDENTE")
+  pixQrCode       String?
+  pixQrCodeBase64 String?
+  paidAt          DateTime?
+  createdAt       DateTime  @default(now())
 }

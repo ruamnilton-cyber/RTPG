@@ -37,28 +37,37 @@ async function main() {
   const categories = ["Lanches", "Bebidas", "Porções"];
   for (const name of categories) {
     await prisma.productCategory.upsert({
-      where: { name },
+      where: { barId_name: { barId: bar.id, name } },
       update: {},
-      create: { name }
+      create: { barId: bar.id, name }
     });
   }
 
   // Categorias de despesas
-  const expenseCategories = ["Funcionário", "Água", "Luz", "Aluguel", "Internet", "Impostos", "Outras despesas"];
-  for (const name of expenseCategories) {
+  const expenseCategories = [
+    { name: "Funcionário", groupType: "OPERACIONAL" },
+    { name: "Água", groupType: "OPERACIONAL" },
+    { name: "Luz", groupType: "OPERACIONAL" },
+    { name: "Aluguel", groupType: "OPERACIONAL" },
+    { name: "Internet", groupType: "OPERACIONAL" },
+    { name: "Impostos", groupType: "ADMINISTRATIVA" },
+    { name: "Outras despesas", groupType: "OUTRAS" }
+  ];
+  for (const { name, groupType } of expenseCategories) {
     await prisma.expenseCategory.upsert({
-      where: { name },
+      where: { barId_name: { barId: bar.id, name } },
       update: {},
-      create: { name }
+      create: { barId: bar.id, name, groupType }
     });
   }
 
   // Mesas
   for (let index = 1; index <= 12; index++) {
     await prisma.restaurantTable.upsert({
-      where: { number: index },
+      where: { barId_number: { barId: bar.id, number: index } },
       update: {},
       create: {
+        barId: bar.id,
         number: index,
         name: `Mesa ${index}`,
         qrCodeToken: crypto.randomUUID()
@@ -68,32 +77,33 @@ async function main() {
 
   // Insumos
   const supplyPao = await prisma.supply.upsert({
-    where: { name: "Pão brioche" },
+    where: { barId_name: { barId: bar.id, name: "Pão brioche" } },
     update: {},
-    create: { name: "Pão brioche", unit: "UNIDADE", averageCost: 1.5, stockCurrent: 80, stockMinimum: 20 }
+    create: { barId: bar.id, name: "Pão brioche", unit: "UNIDADE", averageCost: 1.5, stockCurrent: 80, stockMinimum: 20 }
   });
 
   const supplyCarne = await prisma.supply.upsert({
-    where: { name: "Hambúrguer bovino" },
+    where: { barId_name: { barId: bar.id, name: "Hambúrguer bovino" } },
     update: {},
-    create: { name: "Hambúrguer bovino", unit: "UNIDADE", averageCost: 4.8, stockCurrent: 60, stockMinimum: 15 }
+    create: { barId: bar.id, name: "Hambúrguer bovino", unit: "UNIDADE", averageCost: 4.8, stockCurrent: 60, stockMinimum: 15 }
   });
 
   const supplyQueijo = await prisma.supply.upsert({
-    where: { name: "Queijo cheddar" },
+    where: { barId_name: { barId: bar.id, name: "Queijo cheddar" } },
     update: {},
-    create: { name: "Queijo cheddar", unit: "UNIDADE", averageCost: 1.2, stockCurrent: 100, stockMinimum: 20 }
+    create: { barId: bar.id, name: "Queijo cheddar", unit: "UNIDADE", averageCost: 1.2, stockCurrent: 100, stockMinimum: 20 }
   });
 
   // Produtos
-  const catLanches = await prisma.productCategory.findFirst({ where: { name: "Lanches" } });
-  const catBebidas = await prisma.productCategory.findFirst({ where: { name: "Bebidas" } });
+  const catLanches = await prisma.productCategory.findFirst({ where: { barId: bar.id, name: "Lanches" } });
+  const catBebidas = await prisma.productCategory.findFirst({ where: { barId: bar.id, name: "Bebidas" } });
 
   const burger = await prisma.product.upsert({
     where: { id: "prod-burger-classico" },
     update: {},
     create: {
       id: "prod-burger-classico",
+      barId: bar.id,
       name: "Hambúrguer Clássico",
       categoryId: catLanches?.id,
       salePrice: 28,
@@ -125,6 +135,7 @@ async function main() {
     update: {},
     create: {
       id: "prod-refrigerante",
+      barId: bar.id,
       name: "Refrigerante lata",
       categoryId: catBebidas?.id,
       salePrice: 8,
