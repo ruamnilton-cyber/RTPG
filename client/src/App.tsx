@@ -9,6 +9,7 @@ import { CashPage } from "./pages/cash";
 import { CustomersPage } from "./pages/customers";
 import { DashboardPage } from "./pages/dashboard";
 import { FinanceHubPage } from "./pages/finance-hub";
+import { FeatureCenterPage } from "./pages/feature-center";
 import { InventoryPage } from "./pages/inventory";
 import { KdsPage } from "./pages/kds";
 import { LoginPage } from "./pages/login";
@@ -61,6 +62,7 @@ function AdminRestaurantRoutes() {
         <Route path="estoque" element={<InventoryPage />} />
         <Route path="fichas" element={<RecipesPage />} />
         <Route path="financeiro" element={<FinanceHubPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
         <Route path="dre" element={<ReportsPage />} />
         <Route path="equipe" element={<UsersPage />} />
         <Route path="config" element={<SettingsPage />} />
@@ -93,6 +95,7 @@ function RestaurantAdminRoutes() {
         <Route path="estoque" element={<InventoryPage />} />
         <Route path="fichas" element={<RecipesPage />} />
         <Route path="financeiro" element={<FinanceHubPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
         <Route path="dre" element={<ReportsPage />} />
         <Route path="equipe" element={<UsersPage />} />
         <Route path="config" element={<SettingsPage />} />
@@ -134,6 +137,7 @@ function TeamRoutes() {
         <Route path="clientes" element={<CustomersPage />} />
         <Route path="caixa" element={<CashPage />} />
         <Route path="financeiro" element={<FinanceHubPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="pedidos" element={<OrdersCenterPage />} />
         <Route path="ia" element={<AiPanelPage />} />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../lib/api";
 import { formatMoney } from "../lib/format";
@@ -76,37 +76,43 @@ const operationTiles = [
     to: "/painel-dono/mesas",
     title: "Mesas e vendas",
     desc: "Abra a mesa, lance os itens ao longo do atendimento e feche a comanda so no final.",
-    emoji: "🍽"
+    emoji: "ðŸ½"
   },
   {
     to: "/painel-dono/produtos",
     title: "Cardapio",
     desc: "Produtos, categorias e precos do restaurante.",
-    emoji: "📖"
+    emoji: "ðŸ“–"
   },
   {
     to: "/painel-dono/insumos",
     title: "Insumos e ficha tecnica",
     desc: "Ligue os insumos aos produtos para custo e baixa automatica.",
-    emoji: "🥬"
+    emoji: "ðŸ¥¬"
   },
   {
     to: "/painel-dono/estoque",
     title: "Estoque",
     desc: "Entradas, compras, custo medio e saldo dos insumos.",
-    emoji: "📦"
+    emoji: "ðŸ“¦"
   },
   {
     to: "/painel-dono/financeiro",
     title: "Financeiro",
     desc: "Receitas, despesas e contas a pagar/receber integradas com a operacao.",
-    emoji: "💳"
+    emoji: "ðŸ’³"
   },
   {
     to: "/painel-dono/whatsapp",
     title: "WhatsApp e IA",
     desc: "Conectar atendimento, pedidos e automacao com o restaurante.",
-    emoji: "💬"
+    emoji: "ðŸ’¬"
+  },
+  {
+    to: "/painel-dono/modulos",
+    title: "Central de modulos",
+    desc: "Veja todas as funcoes dos planos e o que ja esta pronto para usar ou integrar.",
+    emoji: "*"
   }
 ];
 
@@ -496,3 +502,4 @@ export function OwnerHubPage() {
     </div>
   );
 }
+

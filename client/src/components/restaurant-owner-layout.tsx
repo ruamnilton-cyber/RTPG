@@ -1,4 +1,4 @@
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+﻿import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { roleLabelMap } from "../lib/roles";
 import { useAuth } from "../state/auth";
 import { useBar } from "../state/bar";
@@ -11,7 +11,8 @@ const subNav = [
   { to: "/painel-dono/insumos", label: "Insumos" },
   { to: "/painel-dono/estoque", label: "Estoque" },
   { to: "/painel-dono/dre", label: "DRE" },
-  { to: "/painel-dono/whatsapp", label: "WhatsApp" }
+  { to: "/painel-dono/whatsapp", label: "WhatsApp" },
+  { to: "/painel-dono/modulos", label: "Modulos" }
 ];
 
 export function RestaurantOwnerLayout() {
@@ -95,10 +96,11 @@ export function RestaurantOwnerLayout() {
 
       <main className="mx-auto max-w-6xl px-4 py-6 pb-24">
         <p className="mb-4 text-xs text-muted">
-          {user?.role ? roleLabelMap[user.role] : ""} · ambiente do restaurante, com operacao, estoque, financeiro e DRE
+          {user?.role ? roleLabelMap[user.role] : ""} Â· ambiente do restaurante, com operacao, estoque, financeiro e DRE
         </p>
         <Outlet />
       </main>
     </div>
   );
 }
+
