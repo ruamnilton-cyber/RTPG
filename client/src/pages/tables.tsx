@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { EmptyState, PageHeader } from "../components/common";
 import { apiRequest } from "../lib/api";
 import { formatDate, formatMoney } from "../lib/format";
@@ -35,6 +35,9 @@ export function TablesPage() {
   const [pendingItems, setPendingItems] = useState<PendingItem[]>([]);
   const [closingMode, setClosingMode] = useState(false);
   const [manageTablesMode, setManageTablesMode] = useState(false);
+  type PixModal = { paymentId: string; qrCode: string; qrCodeBase64: string | null; amount: number; status: "PENDENTE" | "PAGO" };
+  const [pixModal, setPixModal] = useState<PixModal | null>(null);
+  const pixPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   async function load() {
     const [t, p, c, cat, s] = await Promise.allSettled([
@@ -171,6 +174,33 @@ export function TablesPage() {
 
   async function handleCall(callId: string) {
     await apiRequest(`/operations/calls/${callId}/handle`, { method: "POST", token, body: {} }); await load();
+  }
+
+  async function gerarPix() {
+    if (!session) return;
+    const serviceFeeAmount = serviceFeeEnabled ? Number(((session.subtotal * serviceFeePercent) / 100).toFixed(2)) : 0;
+    const amount = Math.max(0, session.subtotal - deductionsAmount + serviceFeeAmount);
+    const tableNumber = selectedTable?.number ?? "?";
+    const data = await apiRequest<{ id: string; pixQrCode: string | null; pixQrCodeBase64: string | null; amount: number; status: string }>(
+      "/payments/pix",
+      { method: "POST", token, body: { amount, description: `Mesa ${tableNumber} – RTPG` } }
+    );
+    setPixModal({ paymentId: data.id, qrCode: data.pixQrCode ?? "", qrCodeBase64: data.pixQrCodeBase64, amount, status: "PENDENTE" });
+    if (pixPollRef.current) clearInterval(pixPollRef.current);
+    pixPollRef.current = setInterval(async () => {
+      try {
+        const status = await apiRequest<{ status: string }>(`/payments/${data.id}/status`, { token });
+        if (status.status === "PAGO") {
+          setPixModal((prev) => prev ? { ...prev, status: "PAGO" } : null);
+          if (pixPollRef.current) clearInterval(pixPollRef.current);
+        }
+      } catch (_) {}
+    }, 5000);
+  }
+
+  function fecharPixModal() {
+    setPixModal(null);
+    if (pixPollRef.current) clearInterval(pixPollRef.current);
   }
 
   const pendingTotal = pendingItems.reduce((sum, item) => sum + item.product.salePrice * item.quantity, 0);
@@ -420,12 +450,55 @@ export function TablesPage() {
                         <div className="flex items-center justify-between gap-3"><span className="text-sm text-muted">Valor da taxa</span><strong>{formatMoney(appliedServiceFeeAmount)}</strong></div>
                         <div className="flex items-center justify-between gap-3 border-t pt-3" style={{ borderColor: "var(--color-border)" }}><span className="text-base font-semibold">Total final</span><strong className="text-3xl">{formatMoney(finalTotal)}</strong></div>
                       </div>
-                      <button className="btn-primary w-full" onClick={closeSession} disabled={!session || session.items.length === 0}>Confirmar fechamento da conta</button>
+                      <div className="flex flex-col gap-2">
+                        <button className="btn-primary w-full" onClick={closeSession} disabled={!session || session.items.length === 0}>Confirmar fechamento da conta</button>
+                        <button className="w-full rounded-2xl border-2 py-3 text-sm font-semibold" style={{ borderColor: "var(--color-primary)", color: "var(--color-primary)" }} onClick={gerarPix} disabled={!session || session.items.length === 0} type="button">
+                          Cobrar via Pix (Mercado Pago)
+                        </button>
+                      </div>
                     </section>
                   )}
                 </aside>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pixModal ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl space-y-4">
+            {pixModal.status === "PAGO" ? (
+              <>
+                <div className="text-center">
+                  <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-4xl">✓</div>
+                  <h3 className="mt-4 text-2xl font-bold text-emerald-700">Pagamento confirmado!</h3>
+                  <p className="mt-2 text-sm text-muted">O Pix foi recebido com sucesso.</p>
+                </div>
+                <button className="btn-primary w-full" onClick={() => { fecharPixModal(); closeSession(); }}>Fechar conta e continuar</button>
+              </>
+            ) : (
+              <>
+                <div>
+                  <h3 className="text-xl font-bold">Cobrar via Pix</h3>
+                  <p className="text-sm text-muted">Total: <strong className="text-lg">{formatMoney(pixModal.amount)}</strong></p>
+                </div>
+                {pixModal.qrCodeBase64 ? (
+                  <img src={`data:image/png;base64,${pixModal.qrCodeBase64}`} alt="QR Code Pix" className="mx-auto h-52 w-52 rounded-2xl" />
+                ) : null}
+                {pixModal.qrCode ? (
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted">Ou copie o código Pix:</p>
+                    <div className="flex gap-2">
+                      <input className="input flex-1 font-mono text-xs" value={pixModal.qrCode} readOnly />
+                      <button className="btn-secondary px-3" onClick={() => navigator.clipboard.writeText(pixModal.qrCode)}>Copiar</button>
+                    </div>
+                  </div>
+                ) : null}
+                <p className="text-center text-xs text-muted">Aguardando pagamento...</p>
+                <button className="btn-secondary w-full" onClick={fecharPixModal}>Fechar e pagar de outra forma</button>
+              </>
+            )}
           </div>
         </div>
       ) : null}

@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MIGRATION_0001 = ROOT / "prisma" / "migrations" / "0001_init" / "migration.sql"
 MIGRATION_0002 = ROOT / "prisma" / "migrations" / "0002_whatsapp" / "migration.sql"
 MIGRATION_0003 = ROOT / "prisma" / "migrations" / "0003_multi_tenant" / "migration.sql"
+MIGRATION_0004 = ROOT / "prisma" / "migrations" / "0004_payments" / "migration.sql"
 
 
 def resolve_base_dir():
@@ -99,6 +100,16 @@ try:
             )
             conn.commit()
             print("Coluna barId adicionada em WhatsappOrder.")
+
+    # ── Migration 0004: TablePayment ─────────────────────────────────────────
+    has_payment_table = table_exists(conn, "TablePayment")
+    if not has_payment_table:
+        sql = MIGRATION_0004.read_text(encoding="utf-8")
+        conn.executescript(sql)
+        conn.commit()
+        print("Migration 0004 aplicada.")
+    else:
+        print("Migration 0004 já aplicada.")
 
     # ── Adição condicional de sortOrder em ProductCategory ───────────────────
     if not column_exists(conn, "ProductCategory", "sortOrder"):

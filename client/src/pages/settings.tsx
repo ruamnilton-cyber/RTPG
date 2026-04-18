@@ -1,4 +1,4 @@
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "../components/common";
 import { paletteMap } from "../lib/palettes";
 import { apiRequest } from "../lib/api";
@@ -58,6 +58,46 @@ export function SettingsPage() {
     notes: ""
   });
   const selectedPalette = useMemo(() => paletteMap[paletteId] ?? paletteOptions[0], [paletteId, paletteOptions]);
+
+  const [mpConfigured, setMpConfigured] = useState(false);
+  const [mpHint, setMpHint] = useState<string | null>(null);
+  const [mpSaving, setMpSaving] = useState(false);
+  const [mpMessage, setMpMessage] = useState("");
+  const mpTokenRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    apiRequest<{ mercadoPago: { configured: boolean; accessTokenHint: string | null } }>("/payments/config", { token })
+      .then((r) => { setMpConfigured(r.mercadoPago.configured); setMpHint(r.mercadoPago.accessTokenHint); })
+      .catch(() => {});
+  }, [token]);
+
+  async function handleSaveMp(event: FormEvent) {
+    event.preventDefault();
+    const accessToken = mpTokenRef.current?.value?.trim();
+    if (!accessToken) return;
+    setMpSaving(true);
+    setMpMessage("");
+    try {
+      await apiRequest("/payments/config/mercadopago", { method: "PUT", token, body: { accessToken } });
+      setMpConfigured(true);
+      setMpHint(`...${accessToken.slice(-6)}`);
+      setMpMessage("Access Token salvo com sucesso.");
+      if (mpTokenRef.current) mpTokenRef.current.value = "";
+    } catch (err) {
+      setMpMessage(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setMpSaving(false);
+    }
+  }
+
+  async function handleRemoveMp() {
+    if (!window.confirm("Remover integração com Mercado Pago?")) return;
+    await apiRequest("/payments/config/mercadopago", { method: "DELETE", token });
+    setMpConfigured(false);
+    setMpHint(null);
+    setMpMessage("Integração removida.");
+  }
 
   useEffect(() => {
     if (!token) return;
@@ -219,6 +259,39 @@ export function SettingsPage() {
             <input className="input" name="newPassword" type="password" placeholder="Nova senha" required />
             {securityMessage ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{securityMessage}</p> : null}
             <button className="btn-primary">Atualizar senha</button>
+          </form>
+
+          <form className="card space-y-4" onSubmit={handleSaveMp}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>Pagamentos</p>
+              <h3 className="mt-2 text-2xl font-bold">Mercado Pago</h3>
+              <p className="mt-2 text-sm text-muted">Cole o Access Token de produção da sua conta Mercado Pago para habilitar cobranças via Pix nas mesas.</p>
+            </div>
+            {mpConfigured ? (
+              <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
+                ✓ Integração ativa — token terminando em <strong>{mpHint}</strong>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                Não configurado. Adicione o Access Token para habilitar Pix.
+              </div>
+            )}
+            <input
+              ref={mpTokenRef}
+              className="input font-mono text-sm"
+              type="password"
+              placeholder="APP_USR-..."
+              autoComplete="off"
+            />
+            {mpMessage ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{mpMessage}</p> : null}
+            <div className="flex flex-wrap gap-3">
+              <button className="btn-primary" type="submit" disabled={mpSaving}>
+                {mpSaving ? "Salvando..." : "Salvar Access Token"}
+              </button>
+              {mpConfigured ? (
+                <button className="btn-secondary" type="button" onClick={handleRemoveMp}>Remover integração</button>
+              ) : null}
+            </div>
           </form>
         </div>
       </div>

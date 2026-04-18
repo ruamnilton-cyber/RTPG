@@ -350,3 +350,16 @@ model PaymentLink {
   createdAt DateTime      @default(now())
   order     WhatsappOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
 }
+
+model TablePayment {
+  id               String    @id
+  saleId           String?
+  provider         String    @default("MERCADOPAGO")
+  externalId       String?
+  amount           Float
+  status           String    @default("PENDENTE")
+  pixQrCode        String?
+  pixQrCodeBase64  String?
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+}
