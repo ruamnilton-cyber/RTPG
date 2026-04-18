@@ -68,8 +68,8 @@ ENV
 echo "==> Instalando dependencias e compilando"
 npm ci
 npm run db:generate
-npm run db:push
-npm run build
+RTPG_DATA_DIR="$DATA_DIR" npm run db:push
+RTPG_DATA_DIR="$DATA_DIR" APP_BASE_URL="https://$APP_DOMAIN" npm run build
 
 echo "==> Subindo app com PM2"
 pm2 delete rtpg >/dev/null 2>&1 || true
