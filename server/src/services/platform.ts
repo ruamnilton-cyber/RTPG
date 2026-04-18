@@ -79,7 +79,7 @@ const DEFAULT_TITLES: FinanceTitle[] = [
 const DEFAULT_CASHIER_SESSIONS: CashierSession[] = [];
 const DEFAULT_CUSTOMERS: CustomerRecord[] = [];
 const DEFAULT_SAAS_CLIENTS: SaasClientRecord[] = [];
-type CreateSaasClientInput = Omit<SaasClientRecord, "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail">;
+type CreateSaasClientInput = Omit<SaasClientRecord, "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail" | "asaasCustomerId" | "asaasSubscriptionId">;
 
 function slugifyAccess(value: string) {
   return value
@@ -531,6 +531,18 @@ export async function updateSaasClientByLinkedUser(userId: string, input: Partia
   return updateSaasClient(target.id, input);
 }
 
+function advanceMonthlyDueDate(currentDueDate: string, billingDay: number, paidAt: string) {
+  const current = new Date(currentDueDate);
+  const paid = new Date(paidAt);
+  const base = Number.isNaN(current.getTime()) || current < paid ? paid : current;
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + 1);
+  next.setDate(1);
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+  next.setDate(Math.min(Math.max(billingDay, 1), lastDay));
+  return next.toISOString().slice(0, 10);
+}
+
 export async function registerSaasPayment(clientId: string, input: Omit<SaasPaymentRecord, "id">) {
   const current = await getSaasClients();
   const next = current.map((item) => {
@@ -544,6 +556,7 @@ export async function registerSaasPayment(clientId: string, input: Omit<SaasPaym
     return saasClientSchema.parse({
       ...item,
       lastPaymentDate: input.paidAt,
+      nextDueDate: advanceMonthlyDueDate(item.nextDueDate, item.billingDay, input.paidAt),
       payments: [payment, ...item.payments],
       status: item.status === "CANCELADO" ? "CANCELADO" : "ATIVO",
       accessStatus: item.status === "CANCELADO" ? item.accessStatus : "LIBERADO"

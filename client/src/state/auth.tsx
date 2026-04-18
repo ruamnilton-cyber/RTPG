@@ -20,6 +20,7 @@ type AuthContextValue = {
     contactName: string;
     phone: string;
     email: string;
+    cpfCnpj?: string;
     accessLogin: string;
     password: string;
   }) => Promise<User>;
@@ -72,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     contactName: string;
     phone: string;
     email: string;
+    cpfCnpj?: string;
     accessLogin: string;
     password: string;
   }) {

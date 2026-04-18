@@ -117,6 +117,7 @@ export const saasClientSchema = z.object({
   linkedUserEmail: z.string().default(""),
   phone: z.string().default(""),
   email: z.string().default(""),
+  cpfCnpj: z.string().default(""),
   planName: z.string().default("Plano Base"),
   monthlyFee: z.number().min(0).default(0),
   billingDay: z.number().int().min(1).max(31).default(10),
@@ -126,6 +127,8 @@ export const saasClientSchema = z.object({
   accessStatus: z.enum(["LIBERADO", "BLOQUEIO_AVISO", "BLOQUEADO"]).default("LIBERADO"),
   notes: z.string().default(""),
   payments: z.array(saasPaymentSchema).default([]),
+  asaasCustomerId: z.string().default(""),
+  asaasSubscriptionId: z.string().default(""),
   createdAt: z.string()
 });
 

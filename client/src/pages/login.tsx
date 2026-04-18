@@ -44,6 +44,7 @@ export function LoginPage() {
       businessName: String(formData.get("businessName") ?? ""),
       contactName: String(formData.get("contactName") ?? ""),
       phone: String(formData.get("phone") ?? ""),
+      cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
       accessLogin: String(formData.get("accessLogin") ?? "")
     };
 
@@ -61,9 +62,10 @@ export function LoginPage() {
         await signupTrial({
           businessName: payload.businessName,
           contactName: payload.contactName,
-          phone: payload.phone,
-          email: payload.email,
-          accessLogin: payload.accessLogin,
+                  phone: payload.phone,
+                  email: payload.email,
+                  cpfCnpj: payload.cpfCnpj,
+                  accessLogin: payload.accessLogin,
           password: payload.password
         });
         navigate("/painel-dono");
@@ -145,6 +147,10 @@ export function LoginPage() {
                   <label className="label">E-mail comercial</label>
                   <input className="input" name="email" type="email" placeholder="dono@restaurante.com" required />
                 </div>
+              </div>
+              <div className="mb-4">
+                <label className="label">CPF ou CNPJ para cobranca</label>
+                <input className="input" name="cpfCnpj" placeholder="Somente numeros" />
               </div>
               <div className="mb-4">
                 <label className="label">Login desejado</label>

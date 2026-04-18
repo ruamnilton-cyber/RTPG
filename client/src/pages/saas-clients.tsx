@@ -24,6 +24,7 @@ type SaasClient = {
   linkedUserEmail: string;
   phone: string;
   email: string;
+  cpfCnpj: string;
   planName: string;
   monthlyFee: number;
   billingDay: number;
@@ -33,6 +34,8 @@ type SaasClient = {
   accessStatus: "LIBERADO" | "BLOQUEIO_AVISO" | "BLOQUEADO";
   notes: string;
   payments: SaasPayment[];
+  asaasCustomerId: string;
+  asaasSubscriptionId: string;
   createdAt: string;
 };
 
@@ -50,6 +53,9 @@ type SaasOverview = {
 type BillingAdminConfig = {
   pixConfigured: boolean;
   cardCheckoutConfigured: boolean;
+  asaasConfigured: boolean;
+  asaasEnvironment: "sandbox" | "production";
+  asaasWebhookConfigured: boolean;
   appBaseUrlConfigured: boolean;
   webhookConfigured: boolean;
   pixRecipientName: string;
@@ -179,7 +185,7 @@ export function SaasClientsPage() {
                 <span className="field-hint">Placeholders aceitos: {"{amount} {client_id} {restaurant} {access_login} {due_date} {reference_month}"}</span>
               </label>
               <label className="space-y-1 md:col-span-2">
-                <span className="label">URL publica do app (AWS)</span>
+                <span className="label">URL publica do app</span>
                 <input
                   className="input"
                   name="appBaseUrl"
@@ -197,6 +203,8 @@ export function SaasClientsPage() {
               <div className="rounded-2xl p-3 surface-soft text-xs">Cartao: {billingConfig?.cardCheckoutConfigured ? "configurado" : "pendente"}</div>
               <div className="rounded-2xl p-3 surface-soft text-xs">URL App: {billingConfig?.appBaseUrlConfigured ? "configurada" : "pendente"}</div>
               <div className="rounded-2xl p-3 surface-soft text-xs">Webhook: {billingConfig?.webhookConfigured ? "configurado" : "pendente"}</div>
+              <div className="rounded-2xl p-3 surface-soft text-xs">Asaas: {billingConfig?.asaasConfigured ? billingConfig.asaasEnvironment : "pendente"}</div>
+              <div className="rounded-2xl p-3 surface-soft text-xs">Webhook Asaas: {billingConfig?.asaasWebhookConfigured ? "configurado" : "pendente"}</div>
             </div>
             {billingConfigMessage ? <p className="rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-700">{billingConfigMessage}</p> : null}
             <button className="btn-primary">Salvar configuracao de cobranca</button>
@@ -224,6 +232,7 @@ export function SaasClientsPage() {
                   contactName: "",
                   phone: "",
                   email: "",
+                  cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                   lastPaymentDate: "",
                   payments: []
                 }
@@ -246,6 +255,10 @@ export function SaasClientsPage() {
               <label className="space-y-1">
                 <span className="label">Senha inicial</span>
                 <input className="input" name="temporaryPassword" placeholder="Senha inicial" defaultValue="12345" required />
+              </label>
+              <label className="space-y-1 md:col-span-2">
+                <span className="label">CPF/CNPJ para cobranca automatica</span>
+                <input className="input" name="cpfCnpj" placeholder="Somente numeros" />
               </label>
               <label className="space-y-1">
                 <span className="label">Plano</span>
@@ -375,6 +388,7 @@ export function SaasClientsPage() {
                         temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
                         phone: String(formData.get("phone") ?? ""),
                         email: String(formData.get("email") ?? ""),
+                        cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                         planName: String(formData.get("planName") ?? ""),
                         monthlyFee: Number(formData.get("monthlyFee") ?? 0),
                         billingDay: Number(formData.get("billingDay") ?? 10),
@@ -411,6 +425,7 @@ export function SaasClientsPage() {
                     <input className="input" name="temporaryPassword" placeholder="Nova senha temporaria (opcional)" />
                     <input className="input" name="phone" defaultValue={selectedClient.phone} />
                     <input className="input" name="email" defaultValue={selectedClient.email} />
+                    <input className="input" name="cpfCnpj" defaultValue={selectedClient.cpfCnpj} placeholder="CPF/CNPJ" />
                     <input className="input" name="planName" defaultValue={selectedClient.planName} />
                     <input className="input" name="monthlyFee" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} />
                     <input className="input" name="billingDay" type="number" min="1" max="31" defaultValue={selectedClient.billingDay} />

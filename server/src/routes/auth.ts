@@ -7,7 +7,7 @@ import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { logAction } from "../services/logging";
 import { createSaasClient, getSaasClients } from "../services/platform";
-import { confirmSaasCheckoutPayment, createSaasCheckout, getBillingConfig, saveBillingConfig, billingConfigPublicView, validateBillingWebhookSignature } from "../services/billing";
+import { confirmAsaasWebhookPayment, confirmSaasCheckoutPayment, createSaasCheckout, getBillingConfig, saveBillingConfig, billingConfigPublicView, validateAsaasWebhookToken, validateBillingWebhookSignature } from "../services/billing";
 
 const router = Router();
 
@@ -28,6 +28,7 @@ const selfSignupSchema = z.object({
   contactName: z.string().min(2, "Informe seu nome."),
   phone: z.string().min(8, "Informe um WhatsApp valido."),
   email: z.string().email("Informe um e-mail valido."),
+  cpfCnpj: z.string().default(""),
   accessLogin: z.string().min(2, "Escolha um login para acessar o sistema."),
   password: z.string().min(5, "A senha deve ter ao menos 5 caracteres."),
   planName: z.string().default("Plano Profissional"),
@@ -89,6 +90,7 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
     temporaryPassword: data.password,
     phone: data.phone,
     email: data.email,
+    cpfCnpj: data.cpfCnpj,
     planName: data.planName,
     monthlyFee: data.monthlyFee,
     billingDay: dueDate.getDate(),
@@ -152,8 +154,8 @@ router.get("/billing-status", requireAuth, async (req, res) => {
     nextDueDate: client.nextDueDate,
     daysToDue,
     paymentMethods: [
-      { id: "pix", label: "Pix", status: billingConfig.pixKey ? "ativo" : "pendente_configuracao" },
-      { id: "credit_card", label: "Cartao de credito", status: billingConfig.creditCardCheckoutUrl ? "ativo" : "pendente_configuracao" },
+      { id: "pix", label: "Pix", status: billingConfig.asaasApiKeyConfigured || billingConfig.pixKey ? "ativo" : "pendente_configuracao" },
+      { id: "credit_card", label: "Cartao de credito", status: billingConfig.asaasApiKeyConfigured || billingConfig.creditCardCheckoutUrl ? "ativo" : "pendente_configuracao" },
       { id: "play_store", label: "Play Store", status: "futuro" }
     ]
   });
@@ -234,6 +236,17 @@ router.post("/billing-webhook/confirm", async (req, res) => {
   }
 
   res.json({ ok: true, clientId: client.id, status: client.status, accessStatus: client.accessStatus });
+});
+
+router.post("/billing-webhook/asaas", async (req, res) => {
+  const token = req.headers["asaas-access-token"];
+  const tokenValue = Array.isArray(token) ? token[0] : token;
+  if (!validateAsaasWebhookToken(tokenValue)) {
+    return res.status(401).json({ message: "Token Asaas invalido." });
+  }
+
+  const result = await confirmAsaasWebhookPayment(req.body);
+  res.json(result);
 });
 
 router.post("/register", async (req, res) => {
