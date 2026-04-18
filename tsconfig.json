@@ -13,8 +13,7 @@
     "moduleResolution": "Node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "react-jsx",
-    "types": ["node"]
+    "jsx": "react-jsx"
   },
   "include": ["client", "server", "prisma", "scripts", "vite.config.ts", "global.d.ts"]
 }

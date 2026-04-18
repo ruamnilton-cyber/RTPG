@@ -65,10 +65,27 @@ export function SettingsPage() {
   const [mpMessage, setMpMessage] = useState("");
   const mpTokenRef = useRef<HTMLInputElement>(null);
 
+  const [asaasConfigured, setAsaasConfigured] = useState(false);
+  const [asaasHint, setAsaasHint] = useState<string | null>(null);
+  const [asaasSandbox, setAsaasSandbox] = useState(true);
+  const [asaasSaving, setAsaasSaving] = useState(false);
+  const [asaasMessage, setAsaasMessage] = useState("");
+  const asaasKeyRef = useRef<HTMLInputElement>(null);
+  const asaasCpfRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     if (!token) return;
-    apiRequest<{ mercadoPago: { configured: boolean; accessTokenHint: string | null } }>("/payments/config", { token })
-      .then((r) => { setMpConfigured(r.mercadoPago.configured); setMpHint(r.mercadoPago.accessTokenHint); })
+    apiRequest<{
+      mercadoPago: { configured: boolean; accessTokenHint: string | null };
+      asaas: { configured: boolean; apiKeyHint: string | null; sandbox: boolean };
+    }>("/payments/config", { token })
+      .then((r) => {
+        setMpConfigured(r.mercadoPago.configured);
+        setMpHint(r.mercadoPago.accessTokenHint);
+        setAsaasConfigured(r.asaas.configured);
+        setAsaasHint(r.asaas.apiKeyHint);
+        setAsaasSandbox(r.asaas.sandbox);
+      })
       .catch(() => {});
   }, [token]);
 
@@ -97,6 +114,37 @@ export function SettingsPage() {
     setMpConfigured(false);
     setMpHint(null);
     setMpMessage("Integração removida.");
+  }
+
+  async function handleSaveAsaas(event: FormEvent) {
+    event.preventDefault();
+    const apiKey = asaasKeyRef.current?.value?.trim();
+    if (!apiKey) return;
+    setAsaasSaving(true);
+    setAsaasMessage("");
+    try {
+      await apiRequest("/payments/config/asaas", {
+        method: "PUT",
+        token,
+        body: { apiKey, sandbox: asaasSandbox, cpfCnpj: asaasCpfRef.current?.value?.trim() || undefined }
+      });
+      setAsaasConfigured(true);
+      setAsaasHint(`...${apiKey.slice(-6)}`);
+      setAsaasMessage("API Key salva com sucesso.");
+      if (asaasKeyRef.current) asaasKeyRef.current.value = "";
+    } catch (err) {
+      setAsaasMessage(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setAsaasSaving(false);
+    }
+  }
+
+  async function handleRemoveAsaas() {
+    if (!window.confirm("Remover integração com Asaas?")) return;
+    await apiRequest("/payments/config/asaas", { method: "DELETE", token });
+    setAsaasConfigured(false);
+    setAsaasHint(null);
+    setAsaasMessage("Integração removida.");
   }
 
   useEffect(() => {
@@ -265,7 +313,7 @@ export function SettingsPage() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>Pagamentos</p>
               <h3 className="mt-2 text-2xl font-bold">Mercado Pago</h3>
-              <p className="mt-2 text-sm text-muted">Cole o Access Token de produção da sua conta Mercado Pago para habilitar cobranças via Pix nas mesas.</p>
+              <p className="mt-2 text-sm text-muted">Cole o Access Token de produção. Se o Mercado Pago falhar e o Asaas estiver configurado, o sistema usa o Asaas automaticamente como fallback.</p>
             </div>
             {mpConfigured ? (
               <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
@@ -290,6 +338,58 @@ export function SettingsPage() {
               </button>
               {mpConfigured ? (
                 <button className="btn-secondary" type="button" onClick={handleRemoveMp}>Remover integração</button>
+              ) : null}
+            </div>
+          </form>
+
+          <form className="card space-y-4" onSubmit={handleSaveAsaas}>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>Pagamentos</p>
+              <h3 className="mt-2 text-2xl font-bold">Asaas</h3>
+              <p className="mt-2 text-sm text-muted">Cole a API Key da sua conta Asaas. Funciona como gateway principal (se MP não estiver configurado) ou fallback automático.</p>
+            </div>
+            {asaasConfigured ? (
+              <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
+                ✓ Integração ativa — chave terminando em <strong>{asaasHint}</strong>
+                {asaasSandbox ? <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">Sandbox</span> : <span className="ml-2 rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-800">Produção</span>}
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                Não configurado. Adicione a API Key para habilitar Pix via Asaas.
+              </div>
+            )}
+            <input
+              ref={asaasKeyRef}
+              className="input font-mono text-sm"
+              type="password"
+              placeholder="$aact_..."
+              autoComplete="off"
+            />
+            <input
+              ref={asaasCpfRef}
+              className="input text-sm"
+              type="text"
+              placeholder="CPF/CNPJ do pagador padrão (opcional, ex: 000.000.001-91)"
+              autoComplete="off"
+            />
+            <label className="flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer" style={{ borderColor: "var(--color-border)" }}>
+              <input
+                type="checkbox"
+                checked={asaasSandbox}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setAsaasSandbox(e.target.checked)}
+              />
+              <div>
+                <strong className="block text-sm">Modo sandbox (testes)</strong>
+                <p className="text-xs text-muted">Desative para usar a API de produção e cobrar de verdade.</p>
+              </div>
+            </label>
+            {asaasMessage ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{asaasMessage}</p> : null}
+            <div className="flex flex-wrap gap-3">
+              <button className="btn-primary" type="submit" disabled={asaasSaving}>
+                {asaasSaving ? "Salvando..." : "Salvar API Key"}
+              </button>
+              {asaasConfigured ? (
+                <button className="btn-secondary" type="button" onClick={handleRemoveAsaas}>Remover integração</button>
               ) : null}
             </div>
           </form>
