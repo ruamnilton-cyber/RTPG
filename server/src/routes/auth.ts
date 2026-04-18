@@ -5,6 +5,7 @@ import { comparePassword, hashPassword, signToken, verifyToken } from "../lib/au
 import { formatTokenFromHeader } from "../lib/utils";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { logAction } from "../services/logging";
+import { getStoredSetting, setStoredSetting } from "../services/system-settings";
 
 const router = Router();
 
@@ -187,6 +188,29 @@ router.delete("/users/:id", requireAuth, requireRole("ADMIN"), async (req, res) 
     description: "Usuario removido"
   });
   res.status(204).send();
+});
+
+// Captura de leads públicos (sem autenticação)
+router.post("/lead", async (req, res) => {
+  const data = z.object({
+    nome:        z.string().min(2),
+    restaurante: z.string().min(2),
+    telefone:    z.string().min(8),
+    email:       z.string().email().optional().or(z.literal(""))
+  }).parse(req.body);
+
+  type Lead = typeof data & { createdAt: string };
+  const existing = await getStoredSetting<Lead[]>("saas_leads", []);
+  const leads = Array.isArray(existing) ? existing : [];
+  leads.push({ ...data, createdAt: new Date().toISOString() });
+  await setStoredSetting("saas_leads", leads as unknown as string);
+  res.status(201).json({ ok: true });
+});
+
+// Listar leads (admin)
+router.get("/leads", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+  const leads = await getStoredSetting("saas_leads", []);
+  res.json(Array.isArray(leads) ? leads : []);
 });
 
 export default router;
