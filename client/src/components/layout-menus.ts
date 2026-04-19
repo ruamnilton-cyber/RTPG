@@ -15,6 +15,7 @@ export const allMenuItems: MenuItem[] = [
   { to: "/financeiro", label: "Financeiro", shortLabel: "Financ.", emoji: "📊", roles: ["ADMIN", "GERENTE", "FINANCEIRO"] },
   { to: "/dre", label: "DRE", shortLabel: "DRE", emoji: "📈", roles: ["ADMIN", "GERENTE", "FINANCEIRO"] },
   { to: "/relatorios", label: "Relatórios", shortLabel: "Relat.", emoji: "📑", roles: ["ADMIN", "GERENTE", "FINANCEIRO"] },
+  { to: "/modulos", label: "Modulos", shortLabel: "Modulos", emoji: "*", roles: ["ADMIN", "GERENTE"] },
   { to: "/estoque", label: "Estoque", emoji: "📦", roles: ["ADMIN", "GERENTE", "FINANCEIRO"] },
   { to: "/insumos", label: "Insumos", emoji: "🥬", roles: ["ADMIN", "GERENTE"] },
   { to: "/fichas", label: "Ficha técnica", emoji: "📝", roles: ["ADMIN", "GERENTE"] },

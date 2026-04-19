@@ -3,6 +3,7 @@ import { roleLabelMap } from "../lib/roles";
 import { useAuth } from "../state/auth";
 import { useBar } from "../state/bar";
 import { useThemeSettings } from "../state/theme";
+import { FullscreenToggle } from "./fullscreen-toggle";
 
 const subNav = [
   { to: "/painel-dono/mesas", label: "Mesas e vendas" },
@@ -10,7 +11,8 @@ const subNav = [
   { to: "/painel-dono/insumos", label: "Insumos" },
   { to: "/painel-dono/estoque", label: "Estoque" },
   { to: "/painel-dono/dre", label: "DRE" },
-  { to: "/painel-dono/whatsapp", label: "WhatsApp" }
+  { to: "/painel-dono/whatsapp", label: "WhatsApp" },
+  { to: "/painel-dono/modulos", label: "Modulos" }
 ];
 
 export function RestaurantOwnerLayout() {
@@ -77,6 +79,7 @@ export function RestaurantOwnerLayout() {
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="hidden text-xs text-muted sm:inline">{user?.name}</span>
+            <FullscreenToggle compact />
             <button
               type="button"
               className="btn-secondary px-3 py-2 text-sm"

@@ -1,0 +1,9 @@
+node_modules
+dist
+storage
+rtpg_local_runtime
+tmp-*.log
+.env
+.env.local
+.git
+.gitignore

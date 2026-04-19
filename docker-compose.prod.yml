@@ -1,0 +1,24 @@
+services:
+  rtpg-app:
+    build: .
+    container_name: rtpg-app
+    restart: unless-stopped
+    ports:
+      - "3333:3333"
+    environment:
+      PORT: 3333
+      RTPG_DATA_DIR: /app/rtpg_data
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3333}
+      SAAS_TRIAL_DAYS: ${SAAS_TRIAL_DAYS:-3}
+      SAAS_PIX_KEY: ${SAAS_PIX_KEY:-}
+      SAAS_PIX_RECIPIENT_NAME: ${SAAS_PIX_RECIPIENT_NAME:-RTPG GESTAO}
+      SAAS_PIX_CITY: ${SAAS_PIX_CITY:-RIO DE JANEIRO}
+      SAAS_CARD_CHECKOUT_URL: ${SAAS_CARD_CHECKOUT_URL:-}
+      SAAS_BILLING_WEBHOOK_SECRET: ${SAAS_BILLING_WEBHOOK_SECRET:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MENU_IMPORT_MODEL: ${OPENAI_MENU_IMPORT_MODEL:-gpt-4.1-mini}
+    volumes:
+      - rtpg_data:/app/rtpg_data
+
+volumes:
+  rtpg_data:

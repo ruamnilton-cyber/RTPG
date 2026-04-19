@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/auth";
+import { FullscreenToggle } from "./fullscreen-toggle";
 
 const ownerMenu = [
   { to: "/meu-gestor", label: "Resumo" },
@@ -59,6 +60,7 @@ export function OwnerLayout() {
               <p className="text-sm text-muted">{user?.email}</p>
             </div>
             <div className="flex gap-2">
+              <FullscreenToggle />
               <button className="btn-secondary flex-1" onClick={() => navigate("/painel-dono")}>
                 Abrir restaurante
               </button>
@@ -87,6 +89,7 @@ export function OwnerLayout() {
               <h2 className="text-2xl font-bold">Carteira e receita</h2>
             </div>
             <div className="flex gap-2">
+              <FullscreenToggle />
               <button className="btn-secondary" onClick={() => navigate("/painel-dono")}>
                 Restaurante
               </button>

@@ -9,6 +9,11 @@ datasource db {
 
 enum UserRole {
   ADMIN
+  GERENTE
+  CAIXA
+  GARCOM
+  COZINHA
+  FINANCEIRO
   OPERADOR
 }
 

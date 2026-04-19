@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: rtpg-gestao
+    runtime: node
+    plan: starter
+    region: ohio
+    repo: https://github.com/ruamnilton-cyber/RTPG
+    branch: main
+    autoDeploy: true
+    buildCommand: npm ci && npm run db:generate && npm run build
+    startCommand: npm run db:push && npm start
+    healthCheckPath: /api/health
+    disk:
+      name: rtpg-data
+      mountPath: /var/data
+      sizeGB: 5
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: RTPG_DATA_DIR
+        value: /var/data/rtpg
+      - key: SAAS_TRIAL_DAYS
+        value: "3"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_BASE_URL
+        value: https://rtpgapp.com

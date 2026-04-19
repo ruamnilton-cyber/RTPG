@@ -32,8 +32,8 @@ router.post("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const bar = await prisma.bar.create({
     data: {
       name: data.name.trim(),
-      code: data.code.trim().toLowerCase(),
-      city: data.city.trim()
+      slug: data.code.trim().toLowerCase(),
+      address: data.city.trim()
     }
   });
 
@@ -62,7 +62,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
     data: {
       ...(data.name !== undefined ? { name: data.name.trim() } : {}),
       ...(data.active !== undefined ? { active: data.active } : {}),
-      ...(data.city !== undefined ? { city: data.city.trim() } : {})
+      ...(data.city !== undefined ? { address: data.city.trim() } : {})
     }
   });
 

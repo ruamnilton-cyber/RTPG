@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { comparePassword, hashPassword, signToken, verifyToken } from "../lib/auth";
 import { formatTokenFromHeader } from "../lib/utils";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { logAction } from "../services/logging";
 import { getStoredSetting, setStoredSetting } from "../services/system-settings";
 
@@ -101,7 +102,7 @@ async function seedTrialBar(barId: string) {
   );
 }
 
-router.post("/login", async (req, res) => {
+router.post("/login", loginRateLimit, async (req, res) => {
   const data = loginSchema.parse(req.body);
   const identifier = data.email.trim().toLowerCase();
   const candidates = identifier.includes("@")
@@ -121,6 +122,8 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Senha incorreta." });
   }
 
+  clearLoginRateLimit(req);
+
   const token = signToken({
     userId: user.id,
     role: user.role,
@@ -139,9 +142,10 @@ router.get("/bootstrap-status", async (_req, res) => {
   res.json({ needsBootstrap: count === 0 });
 });
 
-router.post("/self-signup", async (req, res) => {
+router.post("/self-signup", loginRateLimit, async (req, res) => {
   const data = selfSignupSchema.parse(req.body);
   const email = data.email.trim().toLowerCase();
+  const trialDays = Number(process.env.SAAS_TRIAL_DAYS ?? 3);
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -194,11 +198,13 @@ router.post("/self-signup", async (req, res) => {
     email: result.user.email
   });
 
+  clearLoginRateLimit(req);
+
   res.status(201).json({
     token,
     user: { id: result.user.id, name: result.user.name, email: result.user.email, role: result.user.role },
     bar: { id: result.bar.id, name: result.bar.name, slug: result.bar.slug },
-    trial: { days: 3 }
+    trial: { days: trialDays }
   });
 });
 

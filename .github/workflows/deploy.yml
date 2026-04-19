@@ -1,0 +1,32 @@
+﻿name: Deploy to AWS Lightsail
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    env:
+      LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+      LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
+      LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+
+    steps:
+      - name: Skip deploy when Lightsail secrets are missing
+        if: ${{ env.LIGHTSAIL_HOST == '' || env.LIGHTSAIL_USER == '' || env.LIGHTSAIL_SSH_KEY == '' }}
+        run: echo "Lightsail secrets not configured. Skipping deploy."
+
+      - name: Deploy via SSH
+        if: ${{ env.LIGHTSAIL_HOST != '' && env.LIGHTSAIL_USER != '' && env.LIGHTSAIL_SSH_KEY != '' }}
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.LIGHTSAIL_HOST }}
+          username: ${{ env.LIGHTSAIL_USER }}
+          key: ${{ env.LIGHTSAIL_SSH_KEY }}
+          script: |
+            cd /opt/rtpg-app
+            bash deploy/aws-lightsail/update-rtpg.sh

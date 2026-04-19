@@ -89,11 +89,11 @@ function slugifyAccess(value: string) {
     .slice(0, 20);
 }
 
-async function createUniqueBarCode(baseValue: string) {
+async function createUniqueBarSlug(baseValue: string) {
   const base = slugifyAccess(baseValue) || `bar${Date.now().toString().slice(-5)}`;
   let candidate = base;
   let counter = 1;
-  while (await prisma.bar.findUnique({ where: { code: candidate } })) {
+  while (await prisma.bar.findUnique({ where: { slug: candidate } })) {
     counter += 1;
     candidate = `${base}${counter}`;
   }
@@ -388,12 +388,15 @@ export async function saveSaasClients(clients: SaasClientRecord[]) {
   return clients;
 }
 
-export async function createSaasClient(input: Omit<SaasClientRecord, "id" | "createdAt">) {
+type CreateSaasClientInput = Omit<SaasClientRecord, "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail"> &
+  Partial<Pick<SaasClientRecord, "linkedBarId" | "linkedUserId" | "linkedUserEmail">>;
+
+export async function createSaasClient(input: CreateSaasClientInput) {
   const current = await getSaasClients();
   const desiredLogin = slugifyAccess(input.accessLogin || input.businessName) || `cliente${current.length + 1}`;
   const defaultBusinessName = input.businessName?.trim() || `Restaurante ${desiredLogin}`;
   const defaultContactName = input.contactName?.trim() || desiredLogin;
-  const barCode = await createUniqueBarCode(desiredLogin);
+  const barSlug = await createUniqueBarSlug(desiredLogin);
   const userEmail = await createUniqueUserEmail(desiredLogin);
   const hashedPassword = await hashPassword(input.temporaryPassword || "12345");
 
@@ -401,8 +404,9 @@ export async function createSaasClient(input: Omit<SaasClientRecord, "id" | "cre
     const bar = await tx.bar.create({
       data: {
         name: defaultBusinessName,
-        code: barCode,
-        city: ""
+        slug: barSlug,
+        phone: input.phone || "",
+        address: ""
       }
     });
 

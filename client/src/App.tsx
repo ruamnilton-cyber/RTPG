@@ -8,6 +8,7 @@ import { BarsPage } from "./pages/bars";
 import { CashPage } from "./pages/cash";
 import { CustomersPage } from "./pages/customers";
 import { DashboardPage } from "./pages/dashboard";
+import { FeatureCenterPage } from "./pages/feature-center";
 import { FinanceHubPage } from "./pages/finance-hub";
 import { InventoryPage } from "./pages/inventory";
 import { KdsPage } from "./pages/kds";
@@ -72,6 +73,7 @@ function AdminRestaurantRoutes() {
         <Route path="whatsapp" element={<AiPanelPage />} />
         <Route path="ia" element={<Navigate to="/painel-dono/whatsapp" replace />} />
         <Route path="relatorios" element={<ReportsCenterPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/meu-gestor" replace />} />
       <Route path="*" element={<Navigate to="/meu-gestor" replace />} />
@@ -104,6 +106,7 @@ function RestaurantAdminRoutes() {
         <Route path="whatsapp" element={<AiPanelPage />} />
         <Route path="ia" element={<Navigate to="/painel-dono/whatsapp" replace />} />
         <Route path="relatorios" element={<ReportsCenterPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/painel-dono" replace />} />
       <Route path="*" element={<Navigate to="/painel-dono" replace />} />
@@ -139,6 +142,7 @@ function TeamRoutes() {
         <Route path="ia" element={<AiPanelPage />} />
         <Route path="relatorios" element={<ReportsCenterPage />} />
         <Route path="reservas" element={<ReservationsPage />} />
+        <Route path="modulos" element={<FeatureCenterPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

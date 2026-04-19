@@ -176,7 +176,7 @@ export async function handleIncomingMessage(barId: string, phone: string, body: 
   }
 
   // ── Tentativa de identificar pedido ──────────────────────────────────────
-  if (convState === "MENU_SENT" || convState === "AWAITING_ORDER" || convState === "IDLE") {
+  if (convState === "MENU_SENT" || convState === "AWAITING_ORDER") {
     const parsed = parseOrderText(text);
     if (!parsed.length) {
       await sendWppMessage(
