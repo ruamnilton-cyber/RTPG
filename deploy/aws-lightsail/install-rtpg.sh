@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_DOMAIN="${APP_DOMAIN:-rtpgapp.com}"
-APP_REPO="${APP_REPO:-https://github.com/ruamnilton-cyber/profeng.git}"
+APP_REPO="${APP_REPO:-https://github.com/ruamnilton-cyber/RTPG.git}"
 APP_BRANCH="${APP_BRANCH:-codex/rtpg-transfer}"
 APP_DIR="${APP_DIR:-/opt/rtpg-app}"
 DATA_DIR="${DATA_DIR:-/opt/rtpg-data}"

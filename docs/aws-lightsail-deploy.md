@@ -15,12 +15,12 @@ Este caminho publica o RTPG em uma instancia Lightsail com Node.js, PM2, Nginx e
 No SSH da instancia, execute:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ruamnilton-cyber/profeng/codex/rtpg-transfer/deploy/aws-lightsail/install-rtpg.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ruamnilton-cyber/RTPG/codex/rtpg-transfer/deploy/aws-lightsail/install-rtpg.sh | bash
 ```
 
 ## DNS no Route 53
 
-Crie ou atualize estes registros na Hosted Zone de `rtpgapp.com`:
+Crie ou atualize estes registros na Hosted Zone do seu dominio (exemplo: `rtpgapp.com`):
 
 ```text
 Tipo: A
@@ -41,7 +41,7 @@ TTL: 300
 Depois que o DNS responder para o IP da instancia, rode:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ruamnilton-cyber/profeng/codex/rtpg-transfer/deploy/aws-lightsail/enable-ssl.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ruamnilton-cyber/RTPG/codex/rtpg-transfer/deploy/aws-lightsail/enable-ssl.sh | bash
 ```
 
 ## Validacao
