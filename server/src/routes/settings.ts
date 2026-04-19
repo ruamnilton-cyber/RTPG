@@ -1,38 +1,44 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { requireBar } from "../middleware/bar";
 import { updateSaasClientByLinkedUser } from "../services/platform";
 import { getBrandSetting, getEstablishmentProfileSetting, getVisualThemeSetting, removeBrandLogo, saveBrandLogo, saveEstablishmentProfileSetting, saveVisualThemeSetting } from "../services/settings";
 
 const router = Router();
+router.use(requireAuth, requireBar);
 
-router.get("/", requireAuth, async (_req, res) => {
-  const [theme, brand, establishment] = await Promise.all([getVisualThemeSetting(), getBrandSetting(), getEstablishmentProfileSetting()]);
+router.get("/", async (req, res) => {
+  const [theme, brand, establishment] = await Promise.all([
+    getVisualThemeSetting(req.barId!),
+    getBrandSetting(req.barId!),
+    getEstablishmentProfileSetting(req.barId!)
+  ]);
   res.json({ theme, brand, establishment });
 });
 
-router.put("/theme", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.put("/theme", requireRole("ADMIN"), async (req, res) => {
   const data = z.object({ paletteId: z.string().min(2) }).parse(req.body);
-  await saveVisualThemeSetting(data.paletteId);
+  await saveVisualThemeSetting(req.barId!, data.paletteId);
   res.json({ ok: true, paletteId: data.paletteId });
 });
 
-router.put("/brand/logo", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.put("/brand/logo", requireRole("ADMIN"), async (req, res) => {
   const data = z.object({
     fileName: z.string().min(1),
     dataUrl: z.string().min(10)
   }).parse(req.body);
 
-  const result = await saveBrandLogo(data);
+  const result = await saveBrandLogo(req.barId!, data);
   res.json(result);
 });
 
-router.delete("/brand/logo", requireAuth, requireRole("ADMIN"), async (_req, res) => {
-  const result = await removeBrandLogo();
+router.delete("/brand/logo", requireRole("ADMIN"), async (req, res) => {
+  const result = await removeBrandLogo(req.barId!);
   res.json(result);
 });
 
-router.put("/establishment", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.put("/establishment", requireRole("ADMIN"), async (req, res) => {
   const data = z.object({
     tradeName: z.string().default(""),
     legalName: z.string().default(""),
@@ -52,7 +58,7 @@ router.put("/establishment", requireAuth, requireRole("ADMIN"), async (req, res)
     notes: z.string().default("")
   }).parse(req.body);
 
-  const result = await saveEstablishmentProfileSetting(data);
+  const result = await saveEstablishmentProfileSetting(req.barId!, data);
   await updateSaasClientByLinkedUser(req.user!.userId, {
     businessName: data.tradeName || data.legalName || undefined,
     phone: data.phone || undefined,

@@ -5,8 +5,9 @@ import { requireBar } from "../middleware/bar";
 import { createFinanceTitle, getFinanceOverview, getFinanceTitles, updateFinanceTitle } from "../services/platform";
 
 const router = Router();
+router.use(requireAuth, requireBar);
 
-router.get("/overview", requireAuth, requireBar, async (req, res) => {
+router.get("/overview", async (req, res) => {
   const result = await getFinanceOverview(
     req.query.period ? String(req.query.period) : undefined,
     req.query.start ? String(req.query.start) : undefined,
@@ -16,12 +17,10 @@ router.get("/overview", requireAuth, requireBar, async (req, res) => {
   res.json(result);
 });
 
-router.get("/titles", requireAuth, async (_req, res) => {
-  const titles = await getFinanceTitles();
+router.get("/titles", async (req, res) => {
+  const titles = await getFinanceTitles(req.barId!);
   res.json(titles);
 });
-
-router.use(requireAuth, requireBar);
 
 router.post("/titles", requireRole("ADMIN", "GERENTE", "FINANCEIRO"), async (req, res) => {
   const data = z.object({
@@ -40,7 +39,7 @@ router.post("/titles", requireRole("ADMIN", "GERENTE", "FINANCEIRO"), async (req
   const title = await createFinanceTitle({
     ...data,
     branchId: data.branchId ?? req.barId!
-  });
+  }, req.barId!);
   res.status(201).json(title);
 });
 
@@ -51,7 +50,7 @@ router.patch("/titles/:id", requireRole("ADMIN", "GERENTE", "FINANCEIRO"), async
     dueDate: z.string().optional()
   }).parse(req.body);
 
-  const title = await updateFinanceTitle(req.params.id, data);
+  const title = await updateFinanceTitle(req.params.id, data, req.barId!);
   res.json(title);
 });
 

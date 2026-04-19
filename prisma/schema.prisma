@@ -297,6 +297,7 @@ model Bar {
   users                 UserBar[]
   whatsappConversations WhatsappConversation[]
   whatsappOrders        WhatsappOrder[]
+  tablePayments         TablePayment[]
   productCategories     ProductCategory[]
   products              Product[]
   supplies              Supply[]
@@ -389,6 +390,7 @@ model PaymentLink {
 
 model TablePayment {
   id              String    @id
+  barId           String    @default("default-bar")
   saleId          String?
   provider        String    @default("MERCADOPAGO")
   externalId      String?
@@ -398,4 +400,5 @@ model TablePayment {
   pixQrCodeBase64 String?
   paidAt          DateTime?
   createdAt       DateTime  @default(now())
+  bar             Bar       @relation(fields: [barId], references: [id], onDelete: Cascade)
 }

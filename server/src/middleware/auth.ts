@@ -44,3 +44,15 @@ export function requireRole(...roles: Array<"ADMIN" | "GERENTE" | "CAIXA" | "GAR
     next();
   };
 }
+
+export function requirePlatformAdmin(req: Request, res: Response, next: NextFunction) {
+  if (!req.user) {
+    return res.status(401).json({ message: "UsuÃ¡rio nÃ£o autenticado." });
+  }
+
+  if (req.user.role !== "ADMIN" || req.user.email !== "admin@rtpg.local") {
+    return res.status(403).json({ message: "Acesso restrito ao administrador da plataforma." });
+  }
+
+  next();
+}

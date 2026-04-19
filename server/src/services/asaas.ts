@@ -1,12 +1,12 @@
-import { getStoredSetting, setStoredSetting } from "./system-settings";
+import { getBarStoredSetting, setBarStoredSetting } from "./system-settings";
 
 const ASAAS_PROD    = "https://api.asaas.com/api/v3";
 const ASAAS_SANDBOX = "https://sandbox.asaas.com/api/v3";
 
-async function getConfig() {
-  const apiKey = await getStoredSetting<string | null>("asaas_api_key", null);
+async function getConfig(barId: string) {
+  const apiKey = await getBarStoredSetting<string | null>(barId, "asaas_api_key", null);
   if (!apiKey) throw new Error("Asaas não configurado. Adicione a API Key em Configurações → Pagamentos.");
-  const sandbox = await getStoredSetting<string | null>("asaas_sandbox", "true");
+  const sandbox = await getBarStoredSetting<string | null>(barId, "asaas_sandbox", "true");
   const baseUrl = sandbox === "false" ? ASAAS_PROD : ASAAS_SANDBOX;
   return { apiKey, baseUrl };
 }
@@ -15,18 +15,18 @@ function makeHeaders(apiKey: string) {
   return { "access_token": apiKey, "Content-Type": "application/json" };
 }
 
-export async function isAsaasConfigured(): Promise<boolean> {
-  const key = await getStoredSetting<string | null>("asaas_api_key", null);
+export async function isAsaasConfigured(barId: string): Promise<boolean> {
+  const key = await getBarStoredSetting<string | null>(barId, "asaas_api_key", null);
   return Boolean(key);
 }
 
-async function ensureCustomer(): Promise<string> {
+async function ensureCustomer(barId: string): Promise<string> {
   // Reuse cached customer if available
-  const cached = await getStoredSetting<string | null>("asaas_customer_id", null);
+  const cached = await getBarStoredSetting<string | null>(barId, "asaas_customer_id", null);
   if (cached) return cached;
 
-  const { apiKey, baseUrl } = await getConfig();
-  const cpfCnpj = await getStoredSetting<string | null>("asaas_cpf_cnpj", null) ?? "00003128290";
+  const { apiKey, baseUrl } = await getConfig(barId);
+  const cpfCnpj = await getBarStoredSetting<string | null>(barId, "asaas_cpf_cnpj", null) ?? "00003128290";
 
   // Try to find existing customer by cpfCnpj
   const searchRes = await fetch(`${baseUrl}/customers?cpfCnpj=${cpfCnpj}`, {
@@ -35,7 +35,7 @@ async function ensureCustomer(): Promise<string> {
   if (searchRes.ok) {
     const searched = await searchRes.json() as { data?: Array<{ id: string }> };
     if (searched.data && searched.data.length > 0) {
-      await setStoredSetting("asaas_customer_id", searched.data[0].id);
+      await setBarStoredSetting(barId, "asaas_customer_id", searched.data[0].id);
       return searched.data[0].id;
     }
   }
@@ -58,13 +58,13 @@ async function ensureCustomer(): Promise<string> {
   }
 
   const customer = await res.json() as { id: string };
-  await setStoredSetting("asaas_customer_id", customer.id);
+  await setBarStoredSetting(barId, "asaas_customer_id", customer.id);
   return customer.id;
 }
 
-export async function createAsaasPixPayment(params: { amount: number; description: string }) {
-  const { apiKey, baseUrl } = await getConfig();
-  const customerId = await ensureCustomer();
+export async function createAsaasPixPayment(barId: string, params: { amount: number; description: string }) {
+  const { apiKey, baseUrl } = await getConfig(barId);
+  const customerId = await ensureCustomer(barId);
 
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 1);
@@ -110,8 +110,8 @@ export async function createAsaasPixPayment(params: { amount: number; descriptio
   };
 }
 
-export async function getAsaasPaymentStatus(externalId: string): Promise<{ status: string }> {
-  const { apiKey, baseUrl } = await getConfig();
+export async function getAsaasPaymentStatus(barId: string, externalId: string): Promise<{ status: string }> {
+  const { apiKey, baseUrl } = await getConfig(barId);
 
   const res = await fetch(`${baseUrl}/payments/${externalId}`, {
     headers: makeHeaders(apiKey)

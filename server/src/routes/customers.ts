@@ -1,21 +1,23 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { requireBar } from "../middleware/bar";
 import { createCustomer, deleteCustomer, getCustomerInsights, getCustomers, updateCustomer } from "../services/platform";
 
 const router = Router();
+router.use(requireAuth, requireBar);
 
-router.get("/", requireAuth, async (req, res) => {
-  const customers = await getCustomers(req.query.search ? String(req.query.search) : undefined);
+router.get("/", async (req, res) => {
+  const customers = await getCustomers(req.barId!, req.query.search ? String(req.query.search) : undefined);
   res.json(customers);
 });
 
-router.get("/insights", requireAuth, async (_req, res) => {
-  const insights = await getCustomerInsights();
+router.get("/insights", async (req, res) => {
+  const insights = await getCustomerInsights(req.barId!);
   res.json(insights);
 });
 
-router.post("/", requireAuth, requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM", "OPERADOR"), async (req, res) => {
+router.post("/", requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM", "OPERADOR"), async (req, res) => {
   const data = z.object({
     name: z.string().min(2),
     phone: z.string().default(""),
@@ -33,11 +35,11 @@ router.post("/", requireAuth, requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM",
     tags: z.array(z.string()).default([])
   }).parse(req.body);
 
-  const customer = await createCustomer(data);
+  const customer = await createCustomer(req.barId!, data);
   res.status(201).json(customer);
 });
 
-router.put("/:id", requireAuth, requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM", "OPERADOR"), async (req, res) => {
+router.put("/:id", requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM", "OPERADOR"), async (req, res) => {
   const data = z.object({
     name: z.string().min(2).optional(),
     phone: z.string().optional(),
@@ -55,12 +57,12 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "GERENTE", "CAIXA", "GARCOM
     tags: z.array(z.string()).optional()
   }).parse(req.body);
 
-  const customer = await updateCustomer(req.params.id, data);
+  const customer = await updateCustomer(req.barId!, req.params.id, data);
   res.json(customer);
 });
 
-router.delete("/:id", requireAuth, requireRole("ADMIN", "GERENTE"), async (req, res) => {
-  const result = await deleteCustomer(req.params.id);
+router.delete("/:id", requireRole("ADMIN", "GERENTE"), async (req, res) => {
+  const result = await deleteCustomer(req.barId!, req.params.id);
   res.json(result);
 });
 

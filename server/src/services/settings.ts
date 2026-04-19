@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { appEnv } from "../env";
 import { prisma } from "../lib/prisma";
-import { getStoredSetting, setStoredSetting } from "./system-settings";
+import { getBarStoredSetting, setBarStoredSetting } from "./system-settings";
 
 type VisualThemeSetting = {
   paletteId: string;
@@ -54,31 +54,31 @@ const DEFAULT_PROFILE: EstablishmentProfileSetting = {
   notes: ""
 };
 
-export async function getVisualThemeSetting() {
-  return getStoredSetting("visual-theme", DEFAULT_THEME);
+export async function getVisualThemeSetting(barId: string) {
+  return getBarStoredSetting(barId, "visual-theme", DEFAULT_THEME);
 }
 
-export async function saveVisualThemeSetting(paletteId: string) {
-  return setStoredSetting("visual-theme", { paletteId });
+export async function saveVisualThemeSetting(barId: string, paletteId: string) {
+  return setBarStoredSetting(barId, "visual-theme", { paletteId });
 }
 
-export async function getBrandSetting() {
-  return getStoredSetting("brand-setting", DEFAULT_BRAND);
+export async function getBrandSetting(barId: string) {
+  return getBarStoredSetting(barId, "brand-setting", DEFAULT_BRAND);
 }
 
-export async function getEstablishmentProfileSetting() {
-  const stored = await getStoredSetting<Partial<EstablishmentProfileSetting>>("establishment-profile", DEFAULT_PROFILE);
+export async function getEstablishmentProfileSetting(barId: string) {
+  const stored = await getBarStoredSetting<Partial<EstablishmentProfileSetting>>(barId, "establishment-profile", DEFAULT_PROFILE);
   return { ...DEFAULT_PROFILE, ...stored };
 }
 
-export async function saveEstablishmentProfileSetting(profile: Partial<EstablishmentProfileSetting>) {
-  const current = await getEstablishmentProfileSetting();
+export async function saveEstablishmentProfileSetting(barId: string, profile: Partial<EstablishmentProfileSetting>) {
+  const current = await getEstablishmentProfileSetting(barId);
   const next = { ...current, ...profile };
-  await setStoredSetting("establishment-profile", next);
+  await setBarStoredSetting(barId, "establishment-profile", next);
   return next;
 }
 
-export async function saveBrandLogo(input: { fileName: string; dataUrl: string }) {
+export async function saveBrandLogo(barId: string, input: { fileName: string; dataUrl: string }) {
   const matches = input.dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
   if (!matches) {
     throw new Error("Formato de imagem inválido.");
@@ -97,19 +97,19 @@ export async function saveBrandLogo(input: { fileName: string; dataUrl: string }
     throw new Error("Formato não suportado. Use PNG, JPG, JPEG ou SVG.");
   }
 
-  const uploadsDir = path.join(appEnv.storageDir, "uploads", "branding");
+  const uploadsDir = path.join(appEnv.storageDir, "uploads", "branding", barId);
   fs.mkdirSync(uploadsDir, { recursive: true });
 
   const filePath = path.join(uploadsDir, `logo-principal.${extension}`);
   fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
 
-  const logoUrl = `/storage-files/uploads/branding/logo-principal.${extension}`;
-  await setStoredSetting("brand-setting", { logoUrl });
+  const logoUrl = `/storage-files/uploads/branding/${barId}/logo-principal.${extension}`;
+  await setBarStoredSetting(barId, "brand-setting", { logoUrl });
   return { logoUrl };
 }
 
-export async function removeBrandLogo() {
-  const current = await getBrandSetting();
+export async function removeBrandLogo(barId: string) {
+  const current = await getBrandSetting(barId);
   if (current.logoUrl) {
     const relativePath = current.logoUrl.replace(/^\/storage-files\//, "");
     const absolutePath = path.join(appEnv.storageDir, relativePath);
@@ -118,7 +118,7 @@ export async function removeBrandLogo() {
     }
   }
 
-  await setStoredSetting("brand-setting", { logoUrl: null });
+  await setBarStoredSetting(barId, "brand-setting", { logoUrl: null });
   return { logoUrl: null };
 }
 

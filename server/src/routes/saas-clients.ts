@@ -1,26 +1,28 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, registerSaasPayment, updateSaasClient } from "../services/platform";
 
 const router = Router();
 
-router.get("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.use(requireAuth, requirePlatformAdmin);
+
+router.get("/", async (req, res) => {
   const clients = await getSaasClients(req.query.search ? String(req.query.search) : undefined);
   res.json(clients);
 });
 
-router.get("/overview", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+router.get("/overview", async (_req, res) => {
   const overview = await getSaasOverview();
   res.json(overview);
 });
 
-router.get("/owner-dashboard", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+router.get("/owner-dashboard", async (_req, res) => {
   const dashboard = await getOwnerManagerDashboard();
   res.json(dashboard);
 });
 
-router.post("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.post("/", async (req, res) => {
   const data = z.object({
     businessName: z.string().optional().default(""),
     contactName: z.string().optional().default(""),
@@ -49,7 +51,7 @@ router.post("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
   res.status(201).json(client);
 });
 
-router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.put("/:id", async (req, res) => {
   const data = z.object({
     businessName: z.string().min(2).optional(),
     contactName: z.string().min(2).optional(),
@@ -71,7 +73,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
   res.json(client);
 });
 
-router.post("/:id/payments", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.post("/:id/payments", async (req, res) => {
   const data = z.object({
     amount: z.number().min(0),
     paidAt: z.string(),
@@ -83,7 +85,7 @@ router.post("/:id/payments", requireAuth, requireRole("ADMIN"), async (req, res)
   res.json(client);
 });
 
-router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.delete("/:id", async (req, res) => {
   const result = await deleteSaasClient(req.params.id);
   res.json(result);
 });

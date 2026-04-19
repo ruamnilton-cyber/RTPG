@@ -2,11 +2,11 @@ import path from "node:path";
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { appEnv } from "../env";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 
 const router = Router();
 
-router.use(requireAuth, requireRole("ADMIN"));
+router.use(requireAuth, requirePlatformAdmin);
 
 /**
  * Visão global do sistema: caminhos de dados, contagens e resumo por bar.

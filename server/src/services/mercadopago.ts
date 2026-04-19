@@ -1,19 +1,19 @@
-import { getStoredSetting } from "./system-settings";
+import { getBarStoredSetting } from "./system-settings";
 
 const MP_API = "https://api.mercadopago.com";
 
-async function getAccessToken(): Promise<string> {
-  const token = await getStoredSetting<string | null>("mp_access_token", null);
+async function getAccessToken(barId: string): Promise<string> {
+  const token = await getBarStoredSetting<string | null>(barId, "mp_access_token", null);
   if (!token) throw new Error("Mercado Pago não configurado. Adicione o Access Token em Configurações → Pagamentos.");
   return token;
 }
 
-export async function createPixPayment(params: {
+export async function createPixPayment(barId: string, params: {
   amount: number;
   description: string;
   payerEmail?: string;
 }) {
-  const accessToken = await getAccessToken();
+  const accessToken = await getAccessToken(barId);
 
   const response = await fetch(`${MP_API}/v1/payments`, {
     method: "POST",
@@ -38,8 +38,8 @@ export async function createPixPayment(params: {
   return response.json();
 }
 
-export async function getPaymentStatus(externalId: string) {
-  const accessToken = await getAccessToken();
+export async function getPaymentStatus(barId: string, externalId: string) {
+  const accessToken = await getAccessToken(barId);
 
   const response = await fetch(`${MP_API}/v1/payments/${externalId}`, {
     headers: { Authorization: `Bearer ${accessToken}` }
@@ -49,7 +49,7 @@ export async function getPaymentStatus(externalId: string) {
   return response.json() as Promise<{ id: number; status: string }>;
 }
 
-export async function isMercadoPagoConfigured(): Promise<boolean> {
-  const token = await getStoredSetting<string | null>("mp_access_token", null);
+export async function isMercadoPagoConfigured(barId: string): Promise<boolean> {
+  const token = await getBarStoredSetting<string | null>(barId, "mp_access_token", null);
   return Boolean(token);
 }

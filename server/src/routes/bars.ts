@@ -29,12 +29,22 @@ router.post("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
     })
     .parse(req.body);
 
-  const bar = await prisma.bar.create({
-    data: {
-      name: data.name.trim(),
-      slug: data.code.trim().toLowerCase(),
-      address: data.city.trim()
-    }
+  const bar = await prisma.$transaction(async (tx) => {
+    const created = await tx.bar.create({
+      data: {
+        name: data.name.trim(),
+        slug: data.code.trim().toLowerCase(),
+        address: data.city.trim()
+      }
+    });
+
+    await tx.userBar.upsert({
+      where: { userId_barId: { userId: req.user!.userId, barId: created.id } },
+      update: {},
+      create: { userId: req.user!.userId, barId: created.id }
+    });
+
+    return created;
   });
 
   await logAction({
@@ -56,6 +66,12 @@ router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
       city: z.string().optional()
     })
     .parse(req.body);
+
+  const isPlatformAdmin = req.user!.email === "admin@rtpg.local";
+  const allowedBars = isPlatformAdmin ? [req.params.id] : await getEffectiveBarIds(req.user!.userId, req.user!.role, req.user!.email);
+  if (!allowedBars.includes(req.params.id)) {
+    return res.status(404).json({ message: "Restaurante nÃ£o encontrado para este usuÃ¡rio." });
+  }
 
   const bar = await prisma.bar.update({
     where: { id: req.params.id },

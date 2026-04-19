@@ -4,7 +4,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { comparePassword, hashPassword, signToken, verifyToken } from "../lib/auth";
 import { formatTokenFromHeader } from "../lib/utils";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requirePlatformAdmin, requireRole } from "../middleware/auth";
+import { getEffectiveBarIds, requireBar } from "../middleware/bar";
 import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { logAction } from "../services/logging";
 import { getStoredSetting, setStoredSetting } from "../services/system-settings";
@@ -210,6 +211,7 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
 
 router.post("/register", async (req, res) => {
   let actorUserId: string | undefined;
+  let actorBarId: string | undefined;
   const userCount = await prisma.user.count();
 
   if (userCount > 0) {
@@ -225,6 +227,9 @@ router.post("/register", async (req, res) => {
         return res.status(403).json({ message: "Apenas administradores podem criar usuarios." });
       }
       actorUserId = authUser.userId;
+      const allowedBars = await getEffectiveBarIds(authUser.userId, authUser.role, authUser.email);
+      const headerBar = typeof req.headers["x-bar-id"] === "string" ? req.headers["x-bar-id"].trim() : "";
+      actorBarId = headerBar && allowedBars.includes(headerBar) ? headerBar : allowedBars[0];
     } catch {
       return res.status(401).json({ message: "Sessao invalida ou expirada." });
     }
@@ -246,6 +251,14 @@ router.post("/register", async (req, res) => {
     }
   });
 
+  if (actorBarId) {
+    await prisma.userBar.upsert({
+      where: { userId_barId: { userId: user.id, barId: actorBarId } },
+      update: {},
+      create: { userId: user.id, barId: actorBarId }
+    });
+  }
+
   await logAction({
     userId: actorUserId,
     action: "CREATE",
@@ -265,8 +278,9 @@ router.get("/me", requireAuth, async (req, res) => {
   res.json(user);
 });
 
-router.get("/users", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+router.get("/users", requireAuth, requireRole("ADMIN"), requireBar, async (req, res) => {
   const users = await prisma.user.findMany({
+    where: { bars: { some: { barId: req.barId! } } },
     orderBy: { createdAt: "asc" },
     select: { id: true, name: true, email: true, role: true, active: true, createdAt: true }
   });
@@ -308,13 +322,20 @@ router.post("/reset-password", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
-router.put("/users/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.put("/users/:id", requireAuth, requireRole("ADMIN"), requireBar, async (req, res) => {
   const data = z.object({
     name: z.string().min(2),
     email: z.string().email(),
     role: z.enum(["ADMIN", "GERENTE", "CAIXA", "GARCOM", "COZINHA", "FINANCEIRO", "OPERADOR"]),
     active: z.boolean()
   }).parse(req.body);
+
+  const existing = await prisma.user.findFirst({
+    where: { id: req.params.id, bars: { some: { barId: req.barId! } } }
+  });
+  if (!existing) {
+    return res.status(404).json({ message: "Usuario nao encontrado neste restaurante." });
+  }
 
   const user = await prisma.user.update({ where: { id: req.params.id }, data });
   await logAction({
@@ -327,8 +348,24 @@ router.put("/users/:id", requireAuth, requireRole("ADMIN"), async (req, res) => 
   res.json(user);
 });
 
-router.delete("/users/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
-  await prisma.user.delete({ where: { id: req.params.id } });
+router.delete("/users/:id", requireAuth, requireRole("ADMIN"), requireBar, async (req, res) => {
+  const existing = await prisma.user.findFirst({
+    where: { id: req.params.id, bars: { some: { barId: req.barId! } } },
+    include: { bars: true }
+  });
+  if (!existing) {
+    return res.status(404).json({ message: "Usuario nao encontrado neste restaurante." });
+  }
+
+  if (existing.id === req.user!.userId) {
+    return res.status(400).json({ message: "Voce nao pode remover o proprio usuario." });
+  }
+
+  if (existing.bars.length > 1) {
+    await prisma.userBar.delete({ where: { userId_barId: { userId: existing.id, barId: req.barId! } } });
+  } else {
+    await prisma.user.delete({ where: { id: req.params.id } });
+  }
   await logAction({
     userId: req.user!.userId,
     action: "DELETE",
@@ -357,7 +394,7 @@ router.post("/lead", async (req, res) => {
 });
 
 // Listar leads (admin)
-router.get("/leads", requireAuth, requireRole("ADMIN"), async (_req, res) => {
+router.get("/leads", requireAuth, requirePlatformAdmin, async (_req, res) => {
   const leads = await getStoredSetting("saas_leads", []);
   res.json(Array.isArray(leads) ? leads : []);
 });

@@ -3,7 +3,7 @@ import { AiPanelSetting, aiPanelSchema, CashierSession, cashierSessionSchema, Cu
 import { hashPassword } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 import { parseDateRange } from "../lib/utils";
-import { getStoredSetting, setStoredSetting } from "./system-settings";
+import { getBarStoredSetting, getStoredSetting, setBarStoredSetting, setStoredSetting } from "./system-settings";
 
 const DEFAULT_ORGANIZATION: OrganizationSetting = {
   companyName: "RTPG Gestao",
@@ -111,62 +111,80 @@ async function createUniqueUserEmail(loginValue: string) {
   return candidate;
 }
 
-export async function getOrganizationSetting() {
-  const stored = await getStoredSetting("platform-organization", DEFAULT_ORGANIZATION);
+export async function getOrganizationSetting(barId?: string) {
+  const stored = barId
+    ? await getBarStoredSetting(barId, "platform-organization", DEFAULT_ORGANIZATION)
+    : await getStoredSetting("platform-organization", DEFAULT_ORGANIZATION);
   return organizationSchema.parse(stored);
 }
 
-export async function saveOrganizationSetting(input: Partial<OrganizationSetting>) {
-  const current = await getOrganizationSetting();
+export async function saveOrganizationSetting(input: Partial<OrganizationSetting>, barId?: string) {
+  const current = await getOrganizationSetting(barId);
   const next = organizationSchema.parse({ ...current, ...input });
-  await setStoredSetting("platform-organization", next);
+  if (barId) {
+    await setBarStoredSetting(barId, "platform-organization", next);
+  } else {
+    await setStoredSetting("platform-organization", next);
+  }
   return next;
 }
 
-export async function getFinanceTitles() {
-  const stored = await getStoredSetting("finance-titles", DEFAULT_TITLES);
+export async function getFinanceTitles(barId?: string) {
+  const stored = barId
+    ? await getBarStoredSetting(barId, "finance-titles", DEFAULT_TITLES)
+    : await getStoredSetting("finance-titles", DEFAULT_TITLES);
   return stored.map((item) => financeTitleSchema.parse(item));
 }
 
-export async function saveFinanceTitles(titles: FinanceTitle[]) {
-  await setStoredSetting("finance-titles", titles);
+export async function saveFinanceTitles(titles: FinanceTitle[], barId?: string) {
+  if (barId) {
+    await setBarStoredSetting(barId, "finance-titles", titles);
+  } else {
+    await setStoredSetting("finance-titles", titles);
+  }
   return titles;
 }
 
-export async function createFinanceTitle(input: Omit<FinanceTitle, "id" | "createdAt">) {
-  const current = await getFinanceTitles();
+export async function createFinanceTitle(input: Omit<FinanceTitle, "id" | "createdAt">, barId?: string) {
+  const current = await getFinanceTitles(barId);
   const nextItem = financeTitleSchema.parse({
     ...input,
     id: randomUUID(),
     createdAt: new Date().toISOString()
   });
   const next = [nextItem, ...current];
-  await saveFinanceTitles(next);
+  await saveFinanceTitles(next, barId);
   return nextItem;
 }
 
-export async function updateFinanceTitle(id: string, input: Partial<FinanceTitle>) {
-  const current = await getFinanceTitles();
+export async function updateFinanceTitle(id: string, input: Partial<FinanceTitle>, barId?: string) {
+  const current = await getFinanceTitles(barId);
   const next = current.map((item) => (item.id === id ? financeTitleSchema.parse({ ...item, ...input, id: item.id, createdAt: item.createdAt }) : item));
-  await saveFinanceTitles(next);
+  await saveFinanceTitles(next, barId);
   return next.find((item) => item.id === id) ?? null;
 }
 
-export async function getAiPanelSetting() {
-  const stored = await getStoredSetting("ai-panel-setting", DEFAULT_AI_PANEL);
+export async function getAiPanelSetting(barId?: string) {
+  const stored = barId
+    ? await getBarStoredSetting(barId, "ai-panel-setting", DEFAULT_AI_PANEL)
+    : await getStoredSetting("ai-panel-setting", DEFAULT_AI_PANEL);
   return aiPanelSchema.parse(stored);
 }
 
-export async function saveAiPanelSetting(input: Partial<AiPanelSetting>) {
-  const current = await getAiPanelSetting();
+export async function saveAiPanelSetting(input: Partial<AiPanelSetting>, barId?: string) {
+  const current = await getAiPanelSetting(barId);
   const next = aiPanelSchema.parse({ ...current, ...input });
-  await setStoredSetting("ai-panel-setting", next);
+  if (barId) {
+    await setBarStoredSetting(barId, "ai-panel-setting", next);
+  } else {
+    await setStoredSetting("ai-panel-setting", next);
+  }
   return next;
 }
 
 export async function getFinanceOverview(period?: string, start?: string, end?: string, barId?: string) {
   const range = parseDateRange(period, start, end);
-  const titles = await getFinanceTitles();
+  const titles = await getFinanceTitles(barId);
   const saleWhere = { soldAt: { gte: range.start, lte: range.end }, ...(barId ? { barId } : {}) };
   const expenseWhere = { expenseDate: { gte: range.start, lte: range.end }, ...(barId ? { barId } : {}) };
   const [sales, expenses] = await Promise.all([
@@ -207,18 +225,18 @@ export async function getFinanceOverview(period?: string, start?: string, end?: 
   };
 }
 
-export async function getCashierSessions() {
-  const stored = await getStoredSetting("cashier-sessions", DEFAULT_CASHIER_SESSIONS);
+export async function getCashierSessions(barId: string) {
+  const stored = await getBarStoredSetting(barId, "cashier-sessions", DEFAULT_CASHIER_SESSIONS);
   return stored.map((item) => cashierSessionSchema.parse(item));
 }
 
-export async function saveCashierSessions(sessions: CashierSession[]) {
-  await setStoredSetting("cashier-sessions", sessions);
+export async function saveCashierSessions(barId: string, sessions: CashierSession[]) {
+  await setBarStoredSetting(barId, "cashier-sessions", sessions);
   return sessions;
 }
 
-export async function openCashierSession(input: { userId: string; userName: string; branchId?: string; openingAmount: number }) {
-  const sessions = await getCashierSessions();
+export async function openCashierSession(barId: string, input: { userId: string; userName: string; branchId?: string; openingAmount: number }) {
+  const sessions = await getCashierSessions(barId);
   const openSession = sessions.find((item) => item.status === "ABERTO" && item.userId === input.userId);
   if (openSession) {
     return openSession;
@@ -239,12 +257,12 @@ export async function openCashierSession(input: { userId: string; userName: stri
     movements: []
   });
 
-  await saveCashierSessions([next, ...sessions]);
+  await saveCashierSessions(barId, [next, ...sessions]);
   return next;
 }
 
-export async function addCashierMovement(sessionId: string, input: { type: "SANGRIA" | "REFORCO" | "AJUSTE"; amount: number; reason: string }) {
-  const sessions = await getCashierSessions();
+export async function addCashierMovement(barId: string, sessionId: string, input: { type: "SANGRIA" | "REFORCO" | "AJUSTE"; amount: number; reason: string }) {
+  const sessions = await getCashierSessions(barId);
   const next = sessions.map((session) => {
     if (session.id !== sessionId) return session;
     const movements = [
@@ -270,12 +288,12 @@ export async function addCashierMovement(sessionId: string, input: { type: "SANG
     });
   });
 
-  await saveCashierSessions(next);
+  await saveCashierSessions(barId, next);
   return next.find((item) => item.id === sessionId) ?? null;
 }
 
-export async function closeCashierSession(sessionId: string, input: { closingAmount: number; justification?: string }) {
-  const sessions = await getCashierSessions();
+export async function closeCashierSession(barId: string, sessionId: string, input: { closingAmount: number; justification?: string }) {
+  const sessions = await getCashierSessions(barId);
   const next = sessions.map((session) => {
     if (session.id !== sessionId) return session;
     const divergenceAmount = input.closingAmount - session.expectedAmount;
@@ -288,12 +306,12 @@ export async function closeCashierSession(sessionId: string, input: { closingAmo
       justification: input.justification ?? session.justification
     });
   });
-  await saveCashierSessions(next);
+  await saveCashierSessions(barId, next);
   return next.find((item) => item.id === sessionId) ?? null;
 }
 
-export async function getCustomers(search?: string) {
-  const stored = await getStoredSetting("crm-customers", DEFAULT_CUSTOMERS);
+export async function getCustomers(barId: string, search?: string) {
+  const stored = await getBarStoredSetting(barId, "crm-customers", DEFAULT_CUSTOMERS);
   const customers = stored.map((item) => customerRecordSchema.parse(item));
   if (!search) {
     return customers;
@@ -308,42 +326,42 @@ export async function getCustomers(search?: string) {
   );
 }
 
-export async function saveCustomers(customers: CustomerRecord[]) {
-  await setStoredSetting("crm-customers", customers);
+export async function saveCustomers(barId: string, customers: CustomerRecord[]) {
+  await setBarStoredSetting(barId, "crm-customers", customers);
   return customers;
 }
 
-export async function createCustomer(input: Omit<CustomerRecord, "id" | "createdAt">) {
-  const current = await getCustomers();
+export async function createCustomer(barId: string, input: Omit<CustomerRecord, "id" | "createdAt">) {
+  const current = await getCustomers(barId);
   const nextItem = customerRecordSchema.parse({
     ...input,
     id: randomUUID(),
     createdAt: new Date().toISOString()
   });
-  await saveCustomers([nextItem, ...current]);
+  await saveCustomers(barId, [nextItem, ...current]);
   return nextItem;
 }
 
-export async function updateCustomer(id: string, input: Partial<CustomerRecord>) {
-  const current = await getCustomers();
+export async function updateCustomer(barId: string, id: string, input: Partial<CustomerRecord>) {
+  const current = await getCustomers(barId);
   const next = current.map((item) => (
     item.id === id
       ? customerRecordSchema.parse({ ...item, ...input, id: item.id, createdAt: item.createdAt })
       : item
   ));
-  await saveCustomers(next);
+  await saveCustomers(barId, next);
   return next.find((item) => item.id === id) ?? null;
 }
 
-export async function deleteCustomer(id: string) {
-  const current = await getCustomers();
+export async function deleteCustomer(barId: string, id: string) {
+  const current = await getCustomers(barId);
   const next = current.filter((item) => item.id !== id);
-  await saveCustomers(next);
+  await saveCustomers(barId, next);
   return { ok: true };
 }
 
-export async function getCustomerInsights() {
-  const customers = await getCustomers();
+export async function getCustomerInsights(barId: string) {
+  const customers = await getCustomers(barId);
   const active = customers.filter((item) => item.status !== "INATIVO");
   const vip = customers.filter((item) => item.status === "VIP");
   const fromWhatsapp = customers.filter((item) => item.origin === "WHATSAPP");

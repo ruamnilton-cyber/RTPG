@@ -66,3 +66,15 @@ export async function setStoredSetting<T>(key: string, value: T) {
     return { key, value: JSON.stringify(value) };
   }
 }
+
+function barScopedKey(barId: string, key: string) {
+  return `bar:${barId}:${key}`;
+}
+
+export async function getBarStoredSetting<T>(barId: string, key: string, fallback: T): Promise<T> {
+  return getStoredSetting(barScopedKey(barId, key), fallback);
+}
+
+export async function setBarStoredSetting<T>(barId: string, key: string, value: T) {
+  return setStoredSetting(barScopedKey(barId, key), value);
+}

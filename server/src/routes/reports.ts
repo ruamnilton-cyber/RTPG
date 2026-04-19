@@ -32,7 +32,7 @@ router.get("/dashboard", async (req, res) => {
     prisma.supply.aggregate({ where: { barId: req.barId! }, _sum: { stockCurrent: true } }),
     prisma.product.count({ where: { barId: req.barId! } }),
     prisma.restaurantTable.count({ where: { barId: req.barId!, status: { not: "LIVRE" } } }),
-    getFinanceTitles()
+    getFinanceTitles(req.barId!)
   ]);
 
   const manualRevenue = financeTitles
@@ -101,7 +101,7 @@ router.get("/dre", async (req, res) => {
       where: { ...barWhere, expenseDate: { gte: previousRange.start, lte: previousRange.end } },
       include: { category: true }
     }),
-    getFinanceTitles()
+    getFinanceTitles(req.barId!)
   ]);
 
   const manualRevenue = financeTitles

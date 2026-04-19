@@ -400,7 +400,7 @@ router.post("/sessions/:sessionId/close", async (req, res) => {
 
 router.get("/qr-codes", async (req, res) => {
   const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const brand = await getBrandSetting();
+  const brand = await getBrandSetting(req.barId!);
   const tables = await prisma.restaurantTable.findMany({
     where: { barId: req.barId! },
     orderBy: { number: "asc" }

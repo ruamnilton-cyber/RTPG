@@ -19,10 +19,10 @@ import { randomUUID } from "node:crypto";
 
 export async function getFormattedMenu(barId: string): Promise<string> {
   const categories = await prisma.productCategory.findMany({
-    where: { products: { some: { active: true } } },
+    where: { barId, products: { some: { barId, active: true } } },
     include: {
       products: {
-        where: { active: true },
+        where: { barId, active: true },
         orderBy: { name: "asc" },
       },
     },
@@ -83,9 +83,8 @@ function parseOrderText(text: string): ParsedItem[] {
   return items;
 }
 
-async function matchProducts(parsedItems: ParsedItem[]) {
-  // TODO: quando Product tiver barId, filtrar por bar aqui
-  const products = await prisma.product.findMany({ where: { active: true } });
+async function matchProducts(barId: string, parsedItems: ParsedItem[]) {
+  const products = await prisma.product.findMany({ where: { barId, active: true } });
 
   return parsedItems.map((item) => {
     const normalized = item.name.toLowerCase();
@@ -187,7 +186,7 @@ export async function handleIncomingMessage(barId: string, phone: string, body: 
       return;
     }
 
-    const matched = await matchProducts(parsed);
+    const matched = await matchProducts(barId, parsed);
     const found = matched.filter((m) => m.product !== null);
     const notFound = matched.filter((m) => m.product === null);
 

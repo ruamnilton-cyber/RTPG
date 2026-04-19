@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../middleware/auth";
+import { requireBar } from "../middleware/bar";
 import { getAiPanelSetting, getOrganizationSetting, saveAiPanelSetting } from "../services/platform";
 
 const router = Router();
+router.use(requireAuth, requireBar);
 
-router.get("/panel", requireAuth, async (_req, res) => {
-  const [panel, organization] = await Promise.all([getAiPanelSetting(), getOrganizationSetting()]);
+router.get("/panel", async (req, res) => {
+  const [panel, organization] = await Promise.all([getAiPanelSetting(req.barId!), getOrganizationSetting(req.barId!)]);
   res.json({
     panel,
     operations: {
@@ -27,7 +29,7 @@ router.get("/panel", requireAuth, async (_req, res) => {
   });
 });
 
-router.put("/panel", requireAuth, requireRole("ADMIN", "GERENTE"), async (req, res) => {
+router.put("/panel", requireRole("ADMIN", "GERENTE"), async (req, res) => {
   const payload = z.object({
     assistantName: z.string().optional(),
     channels: z.array(z.enum(["WHATSAPP", "INSTAGRAM", "QR"])).optional(),
@@ -39,11 +41,11 @@ router.put("/panel", requireAuth, requireRole("ADMIN", "GERENTE"), async (req, r
     handoffReasons: z.array(z.string()).optional()
   }).parse(req.body);
 
-  const result = await saveAiPanelSetting(payload);
+  const result = await saveAiPanelSetting(payload, req.barId!);
   res.json(result);
 });
 
-router.post("/handoff", requireAuth, async (req, res) => {
+router.post("/handoff", async (req, res) => {
   const data = z.object({
     channel: z.enum(["WHATSAPP", "INSTAGRAM", "QR"]),
     customerName: z.string().min(2),
