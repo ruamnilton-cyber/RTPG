@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../lib/api";
-import { clearStoredBarId } from "../lib/bar-storage";
+import { clearStoredBarId, setStoredBarId } from "../lib/bar-storage";
 import { AppRole } from "../lib/roles";
 
 type User = {
@@ -15,6 +15,7 @@ type AuthContextValue = {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
+  signupTrial: (payload: { businessName: string; contactName: string; phone: string; email: string; password: string }) => Promise<User>;
   register: (payload: { name: string; email: string; password: string; role: AppRole }) => Promise<void>;
   logout: () => void;
 };
@@ -59,6 +60,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result.user;
   }
 
+  async function signupTrial(payload: { businessName: string; contactName: string; phone: string; email: string; password: string }) {
+    const result = await apiRequest<{ token: string; user: User; bar?: { id: string } }>("/auth/self-signup", {
+      method: "POST",
+      body: payload
+    });
+
+    if (result.bar?.id) {
+      setStoredBarId(result.bar.id);
+    }
+    setToken(result.token);
+    setUser(result.user);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ token: result.token, user: result.user }));
+    return result.user;
+  }
+
   async function register(payload: { name: string; email: string; password: string; role: AppRole }) {
     await apiRequest("/auth/register", { method: "POST", body: payload });
   }
@@ -70,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   }
 
-  const value = useMemo(() => ({ user, token, loading, login, register, logout }), [user, token, loading]);
+  const value = useMemo(() => ({ user, token, loading, login, signupTrial, register, logout }), [user, token, loading]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

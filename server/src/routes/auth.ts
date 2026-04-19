@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
@@ -20,6 +21,85 @@ const registerSchema = z.object({
   name: z.string().min(2, "Informe o nome."),
   role: z.enum(["ADMIN", "GERENTE", "CAIXA", "GARCOM", "COZINHA", "FINANCEIRO", "OPERADOR"]).default("OPERADOR")
 });
+
+const selfSignupSchema = z.object({
+  businessName: z.string().min(2, "Informe o nome do restaurante."),
+  contactName: z.string().min(2, "Informe seu nome."),
+  phone: z.string().min(8, "Informe um WhatsApp valido."),
+  email: z.string().email("Informe um e-mail valido."),
+  password: z.string().min(5, "A senha deve ter ao menos 5 caracteres.")
+});
+
+function slugify(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40) || `restaurante-${Date.now()}`;
+}
+
+async function createUniqueBarSlug(businessName: string) {
+  const base = slugify(businessName);
+  let slug = base;
+  let suffix = 1;
+
+  while (await prisma.bar.findUnique({ where: { slug } })) {
+    suffix += 1;
+    slug = `${base}-${suffix}`;
+  }
+
+  return slug;
+}
+
+async function seedTrialBar(barId: string) {
+  const categories = ["Petiscos", "Pratos", "Bebidas", "Sobremesas"];
+  await Promise.all(
+    categories.map((name, index) =>
+      prisma.productCategory.upsert({
+        where: { barId_name: { barId, name } },
+        update: {},
+        create: { barId, name, sortOrder: index }
+      })
+    )
+  );
+
+  const expenseCategories = [
+    { name: "Equipe", groupType: "OPERACIONAL" },
+    { name: "Agua", groupType: "OPERACIONAL" },
+    { name: "Luz", groupType: "OPERACIONAL" },
+    { name: "Aluguel", groupType: "OPERACIONAL" },
+    { name: "Internet", groupType: "OPERACIONAL" },
+    { name: "Impostos", groupType: "ADMINISTRATIVA" },
+    { name: "Outras despesas", groupType: "OUTRAS" }
+  ];
+  await Promise.all(
+    expenseCategories.map((item) =>
+      prisma.expenseCategory.upsert({
+        where: { barId_name: { barId, name: item.name } },
+        update: {},
+        create: { barId, name: item.name, groupType: item.groupType }
+      })
+    )
+  );
+
+  const tables = Array.from({ length: 12 }, (_, index) => index + 1);
+  await Promise.all(
+    tables.map((number) =>
+      prisma.restaurantTable.upsert({
+        where: { barId_number: { barId, number } },
+        update: {},
+        create: {
+          barId,
+          number,
+          name: `Mesa ${number}`,
+          qrCodeToken: crypto.randomUUID()
+        }
+      })
+    )
+  );
+}
 
 router.post("/login", async (req, res) => {
   const data = loginSchema.parse(req.body);
@@ -57,6 +137,69 @@ router.post("/login", async (req, res) => {
 router.get("/bootstrap-status", async (_req, res) => {
   const count = await prisma.user.count();
   res.json({ needsBootstrap: count === 0 });
+});
+
+router.post("/self-signup", async (req, res) => {
+  const data = selfSignupSchema.parse(req.body);
+  const email = data.email.trim().toLowerCase();
+
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (existingUser) {
+    return res.status(400).json({ message: "Ja existe um usuario com este e-mail. Use a aba de login para entrar." });
+  }
+
+  const slug = await createUniqueBarSlug(data.businessName);
+  const passwordHash = await hashPassword(data.password);
+
+  const result = await prisma.$transaction(async (tx) => {
+    const bar = await tx.bar.create({
+      data: {
+        name: data.businessName.trim(),
+        slug,
+        phone: data.phone.trim(),
+        active: true
+      }
+    });
+
+    const user = await tx.user.create({
+      data: {
+        name: data.contactName.trim(),
+        email,
+        role: "ADMIN",
+        passwordHash
+      }
+    });
+
+    await tx.userBar.create({
+      data: { userId: user.id, barId: bar.id }
+    });
+
+    return { bar, user };
+  });
+
+  await seedTrialBar(result.bar.id);
+
+  await logAction({
+    userId: result.user.id,
+    action: "TRIAL_SIGNUP",
+    entityType: "Bar",
+    entityId: result.bar.id,
+    description: `Teste gratis criado para ${result.bar.name}. Responsavel: ${result.user.name}. WhatsApp: ${data.phone}.`
+  });
+
+  const token = signToken({
+    userId: result.user.id,
+    role: result.user.role,
+    name: result.user.name,
+    email: result.user.email
+  });
+
+  res.status(201).json({
+    token,
+    user: { id: result.user.id, name: result.user.name, email: result.user.email, role: result.user.role },
+    bar: { id: result.bar.id, name: result.bar.name, slug: result.bar.slug },
+    trial: { days: 3 }
+  });
 });
 
 router.post("/register", async (req, res) => {
