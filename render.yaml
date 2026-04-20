@@ -20,7 +20,7 @@ services:
       - key: RTPG_DATA_DIR
         value: /var/data/rtpg
       - key: SAAS_TRIAL_DAYS
-        value: "3"
+        value: "14"
       - key: JWT_SECRET
         generateValue: true
       - key: APP_BASE_URL

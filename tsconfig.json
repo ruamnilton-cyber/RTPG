@@ -15,5 +15,5 @@
     "isolatedModules": true,
     "jsx": "react-jsx"
   },
-  "include": ["client", "server", "prisma", "scripts", "vite.config.ts", "global.d.ts"]
+  "include": ["client", "server", "shared", "prisma", "scripts", "vite.config.ts", "global.d.ts"]
 }

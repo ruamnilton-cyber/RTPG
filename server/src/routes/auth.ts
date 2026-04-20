@@ -9,6 +9,7 @@ import { getEffectiveBarIds, requireBar } from "../middleware/bar";
 import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { logAction } from "../services/logging";
 import { getStoredSetting, setStoredSetting } from "../services/system-settings";
+import { getPlanById, SUBSCRIPTION_TRIAL_DAYS } from "../../../shared/subscription-plans";
 
 const router = Router();
 
@@ -29,7 +30,8 @@ const selfSignupSchema = z.object({
   contactName: z.string().min(2, "Informe seu nome."),
   phone: z.string().min(8, "Informe um WhatsApp valido."),
   email: z.string().email("Informe um e-mail valido."),
-  password: z.string().min(5, "A senha deve ter ao menos 5 caracteres.")
+  password: z.string().min(5, "A senha deve ter ao menos 5 caracteres."),
+  planId: z.string().optional()
 });
 
 function slugify(input: string) {
@@ -146,7 +148,8 @@ router.get("/bootstrap-status", async (_req, res) => {
 router.post("/self-signup", loginRateLimit, async (req, res) => {
   const data = selfSignupSchema.parse(req.body);
   const email = data.email.trim().toLowerCase();
-  const trialDays = Number(process.env.SAAS_TRIAL_DAYS ?? 3);
+  const trialDays = Number(process.env.SAAS_TRIAL_DAYS ?? SUBSCRIPTION_TRIAL_DAYS);
+  const selectedPlan = getPlanById(data.planId) ?? getPlanById("professional");
 
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser) {
@@ -189,7 +192,7 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
     action: "TRIAL_SIGNUP",
     entityType: "Bar",
     entityId: result.bar.id,
-    description: `Teste gratis criado para ${result.bar.name}. Responsavel: ${result.user.name}. WhatsApp: ${data.phone}.`
+    description: `Teste gratis criado para ${result.bar.name}. Plano: ${selectedPlan?.name ?? "Profissional"}. Responsavel: ${result.user.name}. WhatsApp: ${data.phone}.`
   });
 
   const token = signToken({
@@ -205,7 +208,7 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
     token,
     user: { id: result.user.id, name: result.user.name, email: result.user.email, role: result.user.role },
     bar: { id: result.bar.id, name: result.bar.name, slug: result.bar.slug },
-    trial: { days: trialDays }
+    trial: { days: trialDays, plan: selectedPlan }
   });
 });
 

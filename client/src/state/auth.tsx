@@ -15,7 +15,7 @@ type AuthContextValue = {
   token: string | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  signupTrial: (payload: { businessName: string; contactName: string; phone: string; email: string; password: string }) => Promise<User>;
+  signupTrial: (payload: { businessName: string; contactName: string; phone: string; email: string; password: string; planId?: string }) => Promise<User>;
   register: (payload: { name: string; email: string; password: string; role: AppRole }) => Promise<void>;
   logout: () => void;
 };
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return result.user;
   }
 
-  async function signupTrial(payload: { businessName: string; contactName: string; phone: string; email: string; password: string }) {
+  async function signupTrial(payload: { businessName: string; contactName: string; phone: string; email: string; password: string; planId?: string }) {
     const result = await apiRequest<{ token: string; user: User; bar?: { id: string } }>("/auth/self-signup", {
       method: "POST",
       body: payload
