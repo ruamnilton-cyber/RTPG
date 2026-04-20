@@ -19,6 +19,12 @@ export function UsersPage() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "OPERADOR" as AppRole
+  });
 
   async function load() {
     try {
@@ -72,6 +78,7 @@ export function UsersPage() {
       {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
       <form
         className="card grid gap-3 xl:grid-cols-[1.2fr_1.2fr_1fr_1fr_auto]"
+        autoComplete="off"
         onSubmit={async (event) => {
           event.preventDefault();
           const formData = new FormData(event.currentTarget);
@@ -81,23 +88,55 @@ export function UsersPage() {
               method: "POST",
               token,
               body: {
-                name: String(formData.get("name")),
-                email: String(formData.get("email")),
-                password: String(formData.get("password")),
-                role: String(formData.get("role"))
+                name: String(formData.get("newUserName")),
+                email: String(formData.get("newUserAccess")),
+                password: String(formData.get("newUserSecret")),
+                role: String(formData.get("newUserRole"))
               }
             });
-            event.currentTarget.reset();
+            setCreateForm({ name: "", email: "", password: "", role: "OPERADOR" });
             await load();
           } finally {
             setSaving(false);
           }
         }}
       >
-        <input className="input" name="name" placeholder="Nome" required />
-        <input className="input" name="email" type="email" placeholder="E-mail" required />
-        <input className="input" name="password" type="password" placeholder="Senha inicial" required />
-        <select className="input" name="role" defaultValue="OPERADOR">
+        <input
+          className="input"
+          name="newUserName"
+          placeholder="Nome"
+          value={createForm.name}
+          autoComplete="off"
+          onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
+          required
+        />
+        <input
+          className="input"
+          name="newUserAccess"
+          type="email"
+          placeholder="E-mail"
+          value={createForm.email}
+          autoComplete="off"
+          onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
+          required
+        />
+        <input
+          className="input"
+          name="newUserSecret"
+          type="password"
+          placeholder="Senha inicial"
+          value={createForm.password}
+          autoComplete="new-password"
+          onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
+          required
+        />
+        <select
+          className="input"
+          name="newUserRole"
+          value={createForm.role}
+          autoComplete="off"
+          onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value as AppRole }))}
+        >
           {roleOptions.map((role) => (
             <option key={role.value} value={role.value}>{role.label}</option>
           ))}
