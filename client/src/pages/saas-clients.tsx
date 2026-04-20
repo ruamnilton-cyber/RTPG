@@ -13,6 +13,23 @@ type SaasPayment = {
   notes: string;
 };
 
+type SaasBillingCharge = {
+  id: string;
+  provider: "ASAAS";
+  externalId: string;
+  amount: number;
+  dueDate: string;
+  referenceMonth: string;
+  description: string;
+  status: "PENDENTE" | "PAGO" | "VENCIDO" | "CANCELADO" | "FALHOU";
+  invoiceUrl: string;
+  bankSlipUrl: string;
+  pixQrCode: string;
+  pixQrCodeBase64: string;
+  paidAt: string;
+  createdAt: string;
+};
+
 type SaasClient = {
   id: string;
   businessName: string;
@@ -24,6 +41,8 @@ type SaasClient = {
   linkedUserEmail: string;
   phone: string;
   email: string;
+  cpfCnpj: string;
+  asaasCustomerId: string;
   planName: string;
   monthlyFee: number;
   billingDay: number;
@@ -33,6 +52,7 @@ type SaasClient = {
   accessStatus: "LIBERADO" | "BLOQUEIO_AVISO" | "BLOQUEADO";
   notes: string;
   payments: SaasPayment[];
+  billingCharges: SaasBillingCharge[];
   createdAt: string;
 };
 
@@ -51,12 +71,19 @@ function totalClientRevenue(client: SaasClient) {
   return client.payments.reduce((sum, payment) => sum + payment.amount, 0);
 }
 
+function currentReferenceMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function SaasClientsPage() {
   const { token } = useAuth();
   const [clients, setClients] = useState<SaasClient[]>([]);
   const [overview, setOverview] = useState<SaasOverview | null>(null);
   const [selectedClient, setSelectedClient] = useState<SaasClient | null>(null);
   const [search, setSearch] = useState("");
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingResult, setBillingResult] = useState<{ client: SaasClient | null; charge: SaasBillingCharge } | null>(null);
 
   async function load(nextSearch = "") {
     const [list, summary] = await Promise.all([
@@ -115,6 +142,11 @@ export function SaasClientsPage() {
                 method: "POST",
                 token,
                 body: {
+                  businessName: String(formData.get("businessName") ?? ""),
+                  contactName: String(formData.get("contactName") ?? ""),
+                  phone: String(formData.get("phone") ?? ""),
+                  email: String(formData.get("email") ?? ""),
+                  cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                   accessLogin: String(formData.get("accessLogin")),
                   temporaryPassword: String(formData.get("temporaryPassword") ?? "12345"),
                   planName: String(formData.get("planName") ?? "Plano Base"),
@@ -124,12 +156,9 @@ export function SaasClientsPage() {
                   status: String(formData.get("status") ?? "TRIAL"),
                   accessStatus: String(formData.get("accessStatus") ?? "LIBERADO"),
                   notes: String(formData.get("notes") ?? ""),
-                  businessName: "",
-                  contactName: "",
-                  phone: "",
-                  email: "",
                   lastPaymentDate: "",
-                  payments: []
+                  payments: [],
+                  billingCharges: []
                 }
               });
               event.currentTarget.reset();
@@ -143,6 +172,26 @@ export function SaasClientsPage() {
               <h3 className="mt-2 text-2xl font-bold">Novo restaurante</h3>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-1">
+                <span className="label">Nome do restaurante</span>
+                <input className="input" name="businessName" placeholder="Ex: Bar Cura Ressaca" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">Responsavel</span>
+                <input className="input" name="contactName" placeholder="Nome do cliente" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">WhatsApp</span>
+                <input className="input" name="phone" placeholder="DDD + numero" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">Email de cobranca</span>
+                <input className="input" name="email" type="email" placeholder="cliente@email.com" />
+              </label>
+              <label className="space-y-1 md:col-span-2">
+                <span className="label">CPF/CNPJ para Asaas</span>
+                <input className="input" name="cpfCnpj" inputMode="numeric" placeholder="CPF ou CNPJ do pagador" />
+              </label>
               <label className="space-y-1">
                 <span className="label">Login do restaurante</span>
                 <input className="input" name="accessLogin" placeholder="Ex: cura1" required />
@@ -240,7 +289,10 @@ export function SaasClientsPage() {
                   key={client.id}
                   type="button"
                   className="w-full rounded-3xl p-4 text-left surface-soft"
-                  onClick={() => setSelectedClient(client)}
+                  onClick={() => {
+                    setSelectedClient(client);
+                    setBillingResult(null);
+                  }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -279,6 +331,7 @@ export function SaasClientsPage() {
                         temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
                         phone: String(formData.get("phone") ?? ""),
                         email: String(formData.get("email") ?? ""),
+                        cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                         planName: String(formData.get("planName") ?? ""),
                         monthlyFee: Number(formData.get("monthlyFee") ?? 0),
                         billingDay: Number(formData.get("billingDay") ?? 10),
@@ -315,6 +368,7 @@ export function SaasClientsPage() {
                     <input className="input" name="temporaryPassword" placeholder="Nova senha temporaria (opcional)" />
                     <input className="input" name="phone" defaultValue={selectedClient.phone} />
                     <input className="input" name="email" defaultValue={selectedClient.email} />
+                    <input className="input" name="cpfCnpj" defaultValue={selectedClient.cpfCnpj} placeholder="CPF/CNPJ para cobranca Asaas" />
                     <input className="input" name="planName" defaultValue={selectedClient.planName} />
                     <input className="input" name="monthlyFee" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} />
                     <input className="input" name="billingDay" type="number" min="1" max="31" defaultValue={selectedClient.billingDay} />
@@ -363,10 +417,148 @@ export function SaasClientsPage() {
                       <p className="text-xs text-muted">Restaurante vinculado</p>
                       <strong>{selectedClient.linkedBarId || "Ainda nao vinculado"}</strong>
                     </div>
+                    <div className="rounded-3xl p-4 surface-soft">
+                      <p className="text-xs text-muted">Cliente Asaas</p>
+                      <strong>{selectedClient.asaasCustomerId || "Ainda nao criado"}</strong>
+                    </div>
                   </div>
 
                   <button className="btn-primary">Salvar alteracoes</button>
                 </form>
+
+                <form
+                  className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4"
+                  onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+                    event.preventDefault();
+                    const formData = new FormData(event.currentTarget);
+                    setBillingLoading(true);
+                    try {
+                      const result = await apiRequest<{ client: SaasClient | null; charge: SaasBillingCharge }>(
+                        `/saas-clients/${selectedClient.id}/billing/asaas-pix`,
+                        {
+                          method: "POST",
+                          token,
+                          body: {
+                            amount: Number(formData.get("amount") ?? selectedClient.monthlyFee),
+                            dueDate: String(formData.get("dueDate") ?? selectedClient.nextDueDate),
+                            referenceMonth: String(formData.get("referenceMonth") ?? currentReferenceMonth()),
+                            description: String(formData.get("description") ?? "")
+                          }
+                        }
+                      );
+                      setBillingResult(result);
+                      if (result.client) setSelectedClient(result.client);
+                      load(search);
+                    } finally {
+                      setBillingLoading(false);
+                    }
+                  }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">Asaas</p>
+                      <h4 className="mt-1 text-lg font-bold">Gerar cobranca Pix automatica</h4>
+                      <p className="text-sm text-muted">
+                        Essa cobranca cai na sua conta Asaas da plataforma. Quando o Asaas confirmar, o pagamento entra no historico automaticamente.
+                      </p>
+                    </div>
+                    {!selectedClient.cpfCnpj ? (
+                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
+                        Informe CPF/CNPJ antes
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <input className="input" name="amount" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} placeholder="Valor" required />
+                    <input className="input" name="dueDate" type="date" defaultValue={selectedClient.nextDueDate} required />
+                    <input className="input" name="referenceMonth" defaultValue={currentReferenceMonth()} placeholder="Referencia ex: 2026-04" />
+                    <input className="input" name="description" placeholder="Descricao opcional da cobranca" />
+                  </div>
+
+                  <button className="btn-primary mt-3" disabled={billingLoading}>
+                    {billingLoading ? "Gerando Pix..." : "Gerar Pix Asaas"}
+                  </button>
+
+                  {billingResult?.charge && billingResult.client?.id === selectedClient.id ? (
+                    <div className="mt-4 rounded-3xl bg-white p-4 shadow-sm">
+                      <div className="grid gap-4 md:grid-cols-[160px_1fr]">
+                        {billingResult.charge.pixQrCodeBase64 ? (
+                          <img
+                            className="h-40 w-40 rounded-2xl border border-stone-200 bg-white object-contain p-2"
+                            src={`data:image/png;base64,${billingResult.charge.pixQrCodeBase64}`}
+                            alt="QR Code Pix Asaas"
+                          />
+                        ) : null}
+                        <div className="min-w-0 space-y-3">
+                          <div>
+                            <p className="text-xs text-muted">Status</p>
+                            <strong>{billingResult.charge.status}</strong>
+                          </div>
+                          <textarea className="input min-h-24 text-xs" readOnly value={billingResult.charge.pixQrCode} />
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="btn-secondary"
+                              onClick={() => navigator.clipboard.writeText(billingResult.charge.pixQrCode)}
+                            >
+                              Copiar Pix
+                            </button>
+                            {billingResult.charge.invoiceUrl ? (
+                              <a className="btn-secondary" href={billingResult.charge.invoiceUrl} target="_blank" rel="noreferrer">
+                                Abrir cobranca
+                              </a>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </form>
+
+                <div className="rounded-3xl p-4 surface-soft">
+                  <h4 className="text-lg font-bold">Cobrancas Asaas</h4>
+                  <div className="mt-3 space-y-3">
+                    {selectedClient.billingCharges.length === 0 ? (
+                      <p className="text-sm text-muted">Nenhuma cobranca Asaas gerada ainda.</p>
+                    ) : (
+                      selectedClient.billingCharges.map((charge) => (
+                        <div key={charge.id} className="rounded-3xl bg-white p-4">
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <strong>{formatMoney(charge.amount)}</strong>
+                              <p className="text-sm text-muted">
+                                {charge.referenceMonth || "Sem referencia"} - vence {charge.dueDate} - {charge.status}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {charge.invoiceUrl ? (
+                                <a className="btn-secondary" href={charge.invoiceUrl} target="_blank" rel="noreferrer">
+                                  Abrir
+                                </a>
+                              ) : null}
+                              <button
+                                type="button"
+                                className="btn-secondary"
+                                onClick={async () => {
+                                  const client = await apiRequest<SaasClient>(
+                                    `/saas-clients/${selectedClient.id}/billing/${charge.id}/refresh`,
+                                    { method: "POST", token }
+                                  );
+                                  setSelectedClient(client);
+                                  load(search);
+                                }}
+                              >
+                                Atualizar status
+                              </button>
+                            </div>
+                          </div>
+                          {charge.paidAt ? <p className="mt-2 text-xs text-emerald-700">Pago em {charge.paidAt.slice(0, 10)}</p> : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
                 <form
                   className="rounded-3xl p-4 surface-soft"

@@ -44,6 +44,39 @@ Observacoes:
 - O envio de email roda em `try/catch`: se o SES falhar, o cadastro continua funcionando e o erro fica no log do servidor.
 - Rota protegida para teste: `POST /admin/test-email` com `Authorization: Bearer <token-admin-plataforma>` e body `{ "email": "destino@exemplo.com" }`.
 
+## Cobranca da mensalidade com Asaas
+
+O RTPG separa dois fluxos de pagamento:
+
+- Pagamento das mesas: dinheiro do restaurante, configurado pelo proprio restaurante em `Configuracoes > Pagamentos`.
+- Mensalidade RTPG: dinheiro da plataforma, configurado no servidor com a conta Asaas do dono do RTPG.
+
+Configure no `.env` do servidor:
+
+```env
+PLATFORM_ASAAS_API_KEY=
+PLATFORM_ASAAS_SANDBOX=true
+PLATFORM_ASAAS_WEBHOOK_TOKEN=
+```
+
+Como usar:
+
+1. Cadastre ou selecione um restaurante em `Meu gestor > Carteira`.
+2. Preencha o CPF/CNPJ do pagador. O Asaas exige CPF/CNPJ para criar o cliente de cobranca.
+3. Clique em `Gerar Pix Asaas`.
+4. Envie o QR Code ou copia-e-cola ao cliente.
+5. Quando o Asaas confirmar o pagamento, o webhook atualiza a carteira automaticamente.
+
+Webhook da plataforma:
+
+```text
+https://rtpgapp.com/api/billing/webhook/asaas
+```
+
+No painel Asaas, configure esse webhook com um token seguro e copie o mesmo valor para `PLATFORM_ASAAS_WEBHOOK_TOKEN`. O Asaas envia esse token no header `asaas-access-token`, e o RTPG valida esse header antes de processar o pagamento.
+
+Eventos recomendados para cobrancas: `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`, `PAYMENT_DELETED` e `PAYMENT_REFUNDED`.
+
 ## Estrutura do projeto
 
 ```text

@@ -1,7 +1,7 @@
 import { getBarStoredSetting, setBarStoredSetting } from "./system-settings";
 
-const ASAAS_PROD    = "https://api.asaas.com/api/v3";
-const ASAAS_SANDBOX = "https://sandbox.asaas.com/api/v3";
+const ASAAS_PROD    = "https://api.asaas.com/v3";
+const ASAAS_SANDBOX = "https://api-sandbox.asaas.com/v3";
 
 async function getConfig(barId: string) {
   const apiKey = await getBarStoredSetting<string | null>(barId, "asaas_api_key", null);

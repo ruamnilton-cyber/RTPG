@@ -54,5 +54,10 @@ export const appEnv = {
     pass: process.env.SES_SMTP_PASS ?? "",
     fromEmail: process.env.SES_FROM_EMAIL ?? "",
     fromName: process.env.SES_FROM_NAME ?? "RTPG App"
+  },
+  platformAsaas: {
+    apiKey: process.env.PLATFORM_ASAAS_API_KEY ?? "",
+    sandbox: process.env.PLATFORM_ASAAS_SANDBOX !== "false",
+    webhookToken: process.env.PLATFORM_ASAAS_WEBHOOK_TOKEN ?? ""
   }
 };

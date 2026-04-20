@@ -25,6 +25,12 @@ services:
         generateValue: true
       - key: APP_BASE_URL
         value: https://rtpgapp.com
+      - key: PLATFORM_ASAAS_API_KEY
+        sync: false
+      - key: PLATFORM_ASAAS_SANDBOX
+        value: "true"
+      - key: PLATFORM_ASAAS_WEBHOOK_TOKEN
+        sync: false
       - key: SES_SMTP_HOST
         value: email-smtp.us-east-1.amazonaws.com
       - key: SES_SMTP_PORT

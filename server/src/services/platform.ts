@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { AiPanelSetting, aiPanelSchema, CashierSession, cashierSessionSchema, CustomerRecord, customerRecordSchema, FinanceTitle, financeTitleSchema, OrganizationSetting, organizationSchema, SaasClientRecord, saasClientSchema, SaasPaymentRecord, saasPaymentSchema } from "../contracts/platform";
+import { AiPanelSetting, aiPanelSchema, CashierSession, cashierSessionSchema, CustomerRecord, customerRecordSchema, FinanceTitle, financeTitleSchema, OrganizationSetting, organizationSchema, saasBillingChargeSchema, SaasClientRecord, saasClientSchema, SaasPaymentRecord, saasPaymentSchema } from "../contracts/platform";
 import { hashPassword } from "../lib/auth";
 import { prisma } from "../lib/prisma";
 import { parseDateRange } from "../lib/utils";
 import { getBarStoredSetting, getStoredSetting, setBarStoredSetting, setStoredSetting } from "./system-settings";
+import { assertCpfCnpj, createPlatformAsaasCustomer, createPlatformAsaasPixCharge, findPlatformAsaasCustomer, getPlatformAsaasPaymentStatus, mapAsaasChargeStatus, normalizeCpfCnpj } from "./platform-asaas";
 
 const DEFAULT_ORGANIZATION: OrganizationSetting = {
   companyName: "RTPG Gestao",
@@ -79,6 +80,23 @@ const DEFAULT_TITLES: FinanceTitle[] = [
 const DEFAULT_CASHIER_SESSIONS: CashierSession[] = [];
 const DEFAULT_CUSTOMERS: CustomerRecord[] = [];
 const DEFAULT_SAAS_CLIENTS: SaasClientRecord[] = [];
+
+function toDateInputValue(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
+function getCurrentReferenceMonth() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function addMonthsFromDate(dateString: string, months: number, billingDay: number) {
+  const base = dateString ? new Date(`${dateString}T12:00:00`) : new Date();
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + months);
+  next.setDate(Math.min(billingDay, 28));
+  return toDateInputValue(next);
+}
 
 function slugifyAccess(value: string) {
   return value
@@ -406,8 +424,11 @@ export async function saveSaasClients(clients: SaasClientRecord[]) {
   return clients;
 }
 
-type CreateSaasClientInput = Omit<SaasClientRecord, "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail"> &
-  Partial<Pick<SaasClientRecord, "linkedBarId" | "linkedUserId" | "linkedUserEmail">>;
+type CreateSaasClientInput = Omit<
+  SaasClientRecord,
+  "id" | "createdAt" | "linkedBarId" | "linkedUserId" | "linkedUserEmail" | "cpfCnpj" | "asaasCustomerId" | "billingCharges"
+> &
+  Partial<Pick<SaasClientRecord, "linkedBarId" | "linkedUserId" | "linkedUserEmail" | "cpfCnpj" | "asaasCustomerId" | "billingCharges">>;
 
 export async function createSaasClient(input: CreateSaasClientInput) {
   const current = await getSaasClients();
@@ -467,12 +488,64 @@ export async function createSaasClient(input: CreateSaasClientInput) {
     contactName: defaultContactName,
     accessLogin: desiredLogin,
     temporaryPassword: input.temporaryPassword || "12345",
+    cpfCnpj: normalizeCpfCnpj(input.cpfCnpj || ""),
+    asaasCustomerId: input.asaasCustomerId || "",
     linkedBarId: created.bar.id,
     linkedUserId: created.user.id,
     linkedUserEmail: created.user.email,
     id: randomUUID(),
     createdAt: new Date().toISOString()
   });
+  await saveSaasClients([nextItem, ...current]);
+  return nextItem;
+}
+
+export async function createSaasClientFromTrial(input: {
+  businessName: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  planName: string;
+  monthlyFee: number;
+  linkedBarId: string;
+  linkedUserId: string;
+  linkedUserEmail: string;
+  trialDays: number;
+}) {
+  const current = await getSaasClients();
+  const existing = current.find((item) => item.linkedBarId === input.linkedBarId || item.linkedUserId === input.linkedUserId);
+  if (existing) return existing;
+
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + input.trialDays);
+  const billingDay = Math.min(Math.max(dueDate.getDate(), 1), 28);
+
+  const nextItem = saasClientSchema.parse({
+    id: randomUUID(),
+    businessName: input.businessName,
+    contactName: input.contactName,
+    accessLogin: input.linkedUserEmail,
+    temporaryPassword: "definida-pelo-cliente",
+    linkedBarId: input.linkedBarId,
+    linkedUserId: input.linkedUserId,
+    linkedUserEmail: input.linkedUserEmail,
+    phone: input.phone,
+    email: input.email,
+    cpfCnpj: "",
+    asaasCustomerId: "",
+    planName: input.planName,
+    monthlyFee: input.monthlyFee,
+    billingDay,
+    nextDueDate: toDateInputValue(dueDate),
+    lastPaymentDate: "",
+    status: "TRIAL",
+    accessStatus: "LIBERADO",
+    notes: "Criado automaticamente pelo teste gratis.",
+    payments: [],
+    billingCharges: [],
+    createdAt: new Date().toISOString()
+  });
+
   await saveSaasClients([nextItem, ...current]);
   return nextItem;
 }
@@ -486,6 +559,8 @@ export async function updateSaasClient(id: string, input: Partial<SaasClientReco
 
   const nextLogin = input.accessLogin ? slugifyAccess(input.accessLogin) : currentClient.accessLogin;
   const nextUserEmail = nextLogin ? `${nextLogin}@cliente.rtpg.local` : currentClient.linkedUserEmail;
+  const nextCpfCnpj = input.cpfCnpj !== undefined ? normalizeCpfCnpj(input.cpfCnpj) : currentClient.cpfCnpj;
+  const cpfCnpjChanged = nextCpfCnpj !== currentClient.cpfCnpj;
 
   if (currentClient.linkedBarId) {
     await prisma.bar.update({
@@ -531,6 +606,8 @@ export async function updateSaasClient(id: string, input: Partial<SaasClientReco
       ...input,
       accessLogin: nextLogin,
       linkedUserEmail: input.accessLogin ? nextUserEmail : item.linkedUserEmail,
+      cpfCnpj: nextCpfCnpj,
+      asaasCustomerId: cpfCnpjChanged ? "" : item.asaasCustomerId,
       id: item.id,
       createdAt: item.createdAt
     });
@@ -569,6 +646,159 @@ export async function registerSaasPayment(clientId: string, input: Omit<SaasPaym
 
   await saveSaasClients(next);
   return next.find((item) => item.id === clientId) ?? null;
+}
+
+async function ensureSaasAsaasCustomer(client: SaasClientRecord) {
+  if (client.asaasCustomerId) return client.asaasCustomerId;
+
+  assertCpfCnpj(client.cpfCnpj);
+  const customerId = await findPlatformAsaasCustomer(client) ?? await createPlatformAsaasCustomer(client);
+  const current = await getSaasClients();
+  const next = current.map((item) => (
+    item.id === client.id
+      ? saasClientSchema.parse({ ...item, cpfCnpj: normalizeCpfCnpj(item.cpfCnpj), asaasCustomerId: customerId })
+      : item
+  ));
+  await saveSaasClients(next);
+  return customerId;
+}
+
+function applyBillingChargeStatus(client: SaasClientRecord, chargeId: string, asaasStatus: string, paidAt?: string) {
+  const charge = client.billingCharges.find((item) => item.id === chargeId);
+  if (!charge) return client;
+
+  const mappedStatus = mapAsaasChargeStatus(asaasStatus);
+  const paidAtValue = paidAt || new Date().toISOString();
+  const alreadyRegistered = client.payments.some((payment) => payment.notes.includes(charge.externalId));
+
+  const updatedCharges = client.billingCharges.map((item) => (
+    item.id === chargeId
+      ? saasBillingChargeSchema.parse({
+          ...item,
+          status: mappedStatus,
+          paidAt: mappedStatus === "PAGO" ? (item.paidAt || paidAtValue) : item.paidAt
+        })
+      : item
+  ));
+
+  const nextPayments = mappedStatus === "PAGO" && !alreadyRegistered
+    ? [
+        saasPaymentSchema.parse({
+          id: randomUUID(),
+          amount: charge.amount,
+          paidAt: paidAtValue.slice(0, 10),
+          referenceMonth: charge.referenceMonth || getCurrentReferenceMonth(),
+          notes: `Pagamento automatico Asaas ${charge.externalId}`
+        }),
+        ...client.payments
+      ]
+    : client.payments;
+
+  return saasClientSchema.parse({
+    ...client,
+    billingCharges: updatedCharges,
+    payments: nextPayments,
+    lastPaymentDate: mappedStatus === "PAGO" ? paidAtValue.slice(0, 10) : client.lastPaymentDate,
+    nextDueDate: mappedStatus === "PAGO" ? addMonthsFromDate(charge.dueDate, 1, client.billingDay) : client.nextDueDate,
+    status: mappedStatus === "PAGO" ? "ATIVO" : mappedStatus === "VENCIDO" ? "ATRASADO" : client.status,
+    accessStatus: mappedStatus === "PAGO" ? "LIBERADO" : mappedStatus === "VENCIDO" ? "BLOQUEIO_AVISO" : client.accessStatus
+  });
+}
+
+export async function createSaasBillingCharge(clientId: string, input: {
+  amount?: number;
+  dueDate?: string;
+  referenceMonth?: string;
+  description?: string;
+}) {
+  const current = await getSaasClients();
+  const client = current.find((item) => item.id === clientId);
+  if (!client) return null;
+
+  const amount = input.amount ?? client.monthlyFee;
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new Error("Informe um valor de mensalidade maior que zero antes de gerar a cobranca.");
+  }
+
+  const dueDate = input.dueDate?.trim() || client.nextDueDate || toDateInputValue(new Date());
+  const referenceMonth = input.referenceMonth?.trim() || getCurrentReferenceMonth();
+  const description = input.description?.trim() || `Mensalidade RTPG ${client.planName} - ${client.businessName} - ${referenceMonth}`;
+  const customerId = await ensureSaasAsaasCustomer(client);
+  const localChargeId = randomUUID();
+  const pix = await createPlatformAsaasPixCharge({
+    customerId,
+    amount,
+    dueDate,
+    description,
+    externalReference: localChargeId
+  });
+
+  const charge = saasBillingChargeSchema.parse({
+    id: localChargeId,
+    provider: "ASAAS",
+    externalId: pix.externalId,
+    amount,
+    dueDate,
+    referenceMonth,
+    description,
+    status: mapAsaasChargeStatus(pix.status),
+    invoiceUrl: pix.invoiceUrl,
+    bankSlipUrl: pix.bankSlipUrl,
+    pixQrCode: pix.pixQrCode,
+    pixQrCodeBase64: pix.pixQrCodeBase64,
+    paidAt: "",
+    createdAt: new Date().toISOString()
+  });
+
+  const latest = await getSaasClients();
+  const next = latest.map((item) => (
+    item.id === clientId
+      ? saasClientSchema.parse({
+          ...item,
+          asaasCustomerId: item.asaasCustomerId || customerId,
+          billingCharges: [charge, ...item.billingCharges]
+        })
+      : item
+  ));
+  await saveSaasClients(next);
+
+  return {
+    client: next.find((item) => item.id === clientId) ?? null,
+    charge
+  };
+}
+
+export async function refreshSaasBillingCharge(clientId: string, chargeId: string) {
+  const current = await getSaasClients();
+  const client = current.find((item) => item.id === clientId);
+  const charge = client?.billingCharges.find((item) => item.id === chargeId);
+  if (!client || !charge) return null;
+
+  const payment = await getPlatformAsaasPaymentStatus(charge.externalId);
+  const next = current.map((item) => (
+    item.id === clientId ? applyBillingChargeStatus(item, chargeId, payment.status) : item
+  ));
+  await saveSaasClients(next);
+
+  return next.find((item) => item.id === clientId) ?? null;
+}
+
+export async function handleSaasAsaasWebhook(externalId: string, _status?: string) {
+  const current = await getSaasClients();
+  const client = current.find((item) => item.billingCharges.some((charge) => charge.externalId === externalId));
+  if (!client) return null;
+
+  const charge = client.billingCharges.find((item) => item.externalId === externalId);
+  if (!charge) return null;
+
+  const payment = await getPlatformAsaasPaymentStatus(externalId);
+
+  const next = current.map((item) => (
+    item.id === client.id ? applyBillingChargeStatus(item, charge.id, payment.status) : item
+  ));
+  await saveSaasClients(next);
+
+  return next.find((item) => item.id === client.id) ?? null;
 }
 
 export async function deleteSaasClient(id: string) {

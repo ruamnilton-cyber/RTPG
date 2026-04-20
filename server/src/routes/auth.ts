@@ -8,6 +8,7 @@ import { requireAuth, requirePlatformAdmin, requireRole } from "../middleware/au
 import { getEffectiveBarIds, requireBar } from "../middleware/bar";
 import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { logAction } from "../services/logging";
+import { createSaasClientFromTrial } from "../services/platform";
 import { getStoredSetting, setStoredSetting } from "../services/system-settings";
 import { getPlanById, SUBSCRIPTION_TRIAL_DAYS } from "../../../shared/subscription-plans";
 import { emailService, type WelcomeEmailInput } from "../services/email";
@@ -199,6 +200,21 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
   });
 
   await seedTrialBar(result.bar.id);
+
+  if (selectedPlan) {
+    await createSaasClientFromTrial({
+      businessName: result.bar.name,
+      contactName: result.user.name,
+      phone: data.phone.trim(),
+      email: result.user.email,
+      planName: selectedPlan.name,
+      monthlyFee: selectedPlan.monthlyPrice,
+      linkedBarId: result.bar.id,
+      linkedUserId: result.user.id,
+      linkedUserEmail: result.user.email,
+      trialDays
+    });
+  }
 
   await logAction({
     userId: result.user.id,

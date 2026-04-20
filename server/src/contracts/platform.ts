@@ -106,6 +106,23 @@ export const saasPaymentSchema = z.object({
   notes: z.string().default("")
 });
 
+export const saasBillingChargeSchema = z.object({
+  id: z.string(),
+  provider: z.literal("ASAAS").default("ASAAS"),
+  externalId: z.string(),
+  amount: z.number().min(0),
+  dueDate: z.string(),
+  referenceMonth: z.string().default(""),
+  description: z.string().default(""),
+  status: z.enum(["PENDENTE", "PAGO", "VENCIDO", "CANCELADO", "FALHOU"]).default("PENDENTE"),
+  invoiceUrl: z.string().default(""),
+  bankSlipUrl: z.string().default(""),
+  pixQrCode: z.string().default(""),
+  pixQrCodeBase64: z.string().default(""),
+  paidAt: z.string().default(""),
+  createdAt: z.string()
+});
+
 export const saasClientSchema = z.object({
   id: z.string(),
   businessName: z.string().min(2),
@@ -117,6 +134,8 @@ export const saasClientSchema = z.object({
   linkedUserEmail: z.string().default(""),
   phone: z.string().default(""),
   email: z.string().default(""),
+  cpfCnpj: z.string().default(""),
+  asaasCustomerId: z.string().default(""),
   planName: z.string().default("Plano Base"),
   monthlyFee: z.number().min(0).default(0),
   billingDay: z.number().int().min(1).max(31).default(10),
@@ -126,6 +145,7 @@ export const saasClientSchema = z.object({
   accessStatus: z.enum(["LIBERADO", "BLOQUEIO_AVISO", "BLOQUEADO"]).default("LIBERADO"),
   notes: z.string().default(""),
   payments: z.array(saasPaymentSchema).default([]),
+  billingCharges: z.array(saasBillingChargeSchema).default([]),
   createdAt: z.string()
 });
 
@@ -136,4 +156,5 @@ export type CashierMovement = z.infer<typeof cashierMovementSchema>;
 export type CashierSession = z.infer<typeof cashierSessionSchema>;
 export type CustomerRecord = z.infer<typeof customerRecordSchema>;
 export type SaasPaymentRecord = z.infer<typeof saasPaymentSchema>;
+export type SaasBillingChargeRecord = z.infer<typeof saasBillingChargeSchema>;
 export type SaasClientRecord = z.infer<typeof saasClientSchema>;

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
-import { createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, registerSaasPayment, updateSaasClient } from "../services/platform";
+import { createSaasBillingCharge, createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, refreshSaasBillingCharge, registerSaasPayment, updateSaasClient } from "../services/platform";
 import { emailService } from "../services/email";
 
 const router = Router();
@@ -31,6 +31,8 @@ router.post("/", async (req, res) => {
     temporaryPassword: z.string().min(5).default("12345"),
     phone: z.string().default(""),
     email: z.string().default(""),
+    cpfCnpj: z.string().default(""),
+    asaasCustomerId: z.string().default(""),
     planName: z.string().default("Plano Base"),
     monthlyFee: z.number().min(0).default(0),
     billingDay: z.number().int().min(1).max(31).default(10),
@@ -45,6 +47,22 @@ router.post("/", async (req, res) => {
       paidAt: z.string(),
       referenceMonth: z.string().default(""),
       notes: z.string().default("")
+    })).default([]),
+    billingCharges: z.array(z.object({
+      id: z.string(),
+      provider: z.literal("ASAAS").default("ASAAS"),
+      externalId: z.string(),
+      amount: z.number(),
+      dueDate: z.string(),
+      referenceMonth: z.string().default(""),
+      description: z.string().default(""),
+      status: z.enum(["PENDENTE", "PAGO", "VENCIDO", "CANCELADO", "FALHOU"]).default("PENDENTE"),
+      invoiceUrl: z.string().default(""),
+      bankSlipUrl: z.string().default(""),
+      pixQrCode: z.string().default(""),
+      pixQrCodeBase64: z.string().default(""),
+      paidAt: z.string().default(""),
+      createdAt: z.string()
     })).default([])
   }).parse(req.body);
 
@@ -77,6 +95,7 @@ router.put("/:id", async (req, res) => {
     temporaryPassword: z.string().min(5).optional(),
     phone: z.string().optional(),
     email: z.string().optional(),
+    cpfCnpj: z.string().optional(),
     planName: z.string().optional(),
     monthlyFee: z.number().min(0).optional(),
     billingDay: z.number().int().min(1).max(31).optional(),
@@ -88,6 +107,31 @@ router.put("/:id", async (req, res) => {
   }).parse(req.body);
 
   const client = await updateSaasClient(req.params.id, data);
+  res.json(client);
+});
+
+router.post("/:id/billing/asaas-pix", async (req, res) => {
+  const data = z.object({
+    amount: z.number().positive().optional(),
+    dueDate: z.string().optional(),
+    referenceMonth: z.string().optional(),
+    description: z.string().optional()
+  }).parse(req.body);
+
+  const result = await createSaasBillingCharge(req.params.id, data);
+  if (!result) {
+    return res.status(404).json({ message: "Cliente SaaS nao encontrado." });
+  }
+
+  res.status(201).json(result);
+});
+
+router.post("/:id/billing/:chargeId/refresh", async (req, res) => {
+  const client = await refreshSaasBillingCharge(req.params.id, req.params.chargeId);
+  if (!client) {
+    return res.status(404).json({ message: "Cobranca SaaS nao encontrada." });
+  }
+
   res.json(client);
 });
 
