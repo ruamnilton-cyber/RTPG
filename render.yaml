@@ -25,3 +25,15 @@ services:
         generateValue: true
       - key: APP_BASE_URL
         value: https://rtpgapp.com
+      - key: SES_SMTP_HOST
+        value: email-smtp.us-east-1.amazonaws.com
+      - key: SES_SMTP_PORT
+        value: "587"
+      - key: SES_SMTP_USER
+        sync: false
+      - key: SES_SMTP_PASS
+        sync: false
+      - key: SES_FROM_EMAIL
+        value: comercial@rtpgapp.com
+      - key: SES_FROM_NAME
+        value: RTPG App

@@ -10,6 +10,7 @@ import { clearLoginRateLimit, loginRateLimit } from "../middleware/security";
 import { logAction } from "../services/logging";
 import { getStoredSetting, setStoredSetting } from "../services/system-settings";
 import { getPlanById, SUBSCRIPTION_TRIAL_DAYS } from "../../../shared/subscription-plans";
+import { emailService, type WelcomeEmailInput } from "../services/email";
 
 const router = Router();
 
@@ -105,6 +106,18 @@ async function seedTrialBar(barId: string) {
   );
 }
 
+async function sendWelcomeEmailWithoutBlockingSignup(input: WelcomeEmailInput) {
+  try {
+    if (!emailService.isConfigured()) {
+      console.warn("[email] SES SMTP nao configurado; email de boas-vindas nao enviado.");
+      return;
+    }
+    await emailService.sendWelcomeEmail(input);
+  } catch (err) {
+    console.error("[email] Falha ao enviar email de boas-vindas.", err);
+  }
+}
+
 router.post("/login", loginRateLimit, async (req, res) => {
   const data = loginSchema.parse(req.body);
   const identifier = data.email.trim().toLowerCase();
@@ -195,6 +208,13 @@ router.post("/self-signup", loginRateLimit, async (req, res) => {
     description: `Teste gratis criado para ${result.bar.name}. Plano: ${selectedPlan?.name ?? "Profissional"}. Responsavel: ${result.user.name}. WhatsApp: ${data.phone}.`
   });
 
+  await sendWelcomeEmailWithoutBlockingSignup({
+    name: result.user.name,
+    email: result.user.email,
+    login: result.user.email,
+    businessName: result.bar.name
+  });
+
   const token = signToken({
     userId: result.user.id,
     role: result.user.role,
@@ -268,6 +288,13 @@ router.post("/register", async (req, res) => {
     entityType: "User",
     entityId: user.id,
     description: `Usuario ${user.email} criado`
+  });
+
+  await sendWelcomeEmailWithoutBlockingSignup({
+    name: user.name,
+    email: user.email,
+    login: user.email,
+    password: data.password
   });
 
   res.status(201).json({ id: user.id, name: user.name, email: user.email, role: user.role });

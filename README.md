@@ -23,6 +23,27 @@ Tudo foi estruturado para rodar localmente no Windows, com persistência real em
 - Banco: SQLite
 - ORM: Prisma
 
+## Email transacional com Amazon SES
+
+O backend envia email de boas-vindas por SMTP usando Amazon SES. As credenciais nunca ficam no codigo; configure no arquivo `.env` do ambiente:
+
+```env
+SES_SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+SES_SMTP_PORT=587
+SES_SMTP_USER=
+SES_SMTP_PASS=
+SES_FROM_EMAIL=comercial@rtpgapp.com
+SES_FROM_NAME=RTPG App
+APP_BASE_URL=https://rtpgapp.com
+```
+
+Observacoes:
+
+- `SES_SMTP_USER` e `SES_SMTP_PASS` sao as credenciais SMTP geradas no Amazon SES.
+- O remetente `SES_FROM_EMAIL` precisa estar verificado no SES enquanto a conta estiver em sandbox.
+- O envio de email roda em `try/catch`: se o SES falhar, o cadastro continua funcionando e o erro fica no log do servidor.
+- Rota protegida para teste: `POST /admin/test-email` com `Authorization: Bearer <token-admin-plataforma>` e body `{ "email": "destino@exemplo.com" }`.
+
 ## Estrutura do projeto
 
 ```text

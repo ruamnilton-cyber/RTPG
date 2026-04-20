@@ -63,6 +63,12 @@ SAAS_CARD_CHECKOUT_URL=
 SAAS_BILLING_WEBHOOK_SECRET=
 OPENAI_API_KEY=
 OPENAI_MENU_IMPORT_MODEL=gpt-4.1-mini
+SES_SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+SES_SMTP_PORT=587
+SES_SMTP_USER=
+SES_SMTP_PASS=
+SES_FROM_EMAIL=comercial@rtpgapp.com
+SES_FROM_NAME=RTPG App
 ENV
 
 echo "==> Instalando dependencias e compilando"

@@ -20,6 +20,7 @@ import paymentsRoutes from "./routes/payments";
 import customersRoutes from "./routes/customers";
 import saasClientsRoutes from "./routes/saas-clients";
 import plansRoutes from "./routes/plans";
+import adminRoutes from "./routes/admin";
 import { errorHandler } from "./middleware/error-handler";
 import { applySecurityHeaders, publicStorageGuard } from "./middleware/security";
 import { appEnv } from "./env";
@@ -51,6 +52,8 @@ app.use("/api/customers", customersRoutes);
 app.use("/api/saas-clients", saasClientsRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/plans", plansRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/admin", adminRoutes);
 app.use("/public", publicRoutes);
 app.use("/storage-files", publicStorageGuard, express.static(appEnv.storageDir));
 

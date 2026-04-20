@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
 import { createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, registerSaasPayment, updateSaasClient } from "../services/platform";
+import { emailService } from "../services/email";
 
 const router = Router();
 
@@ -48,6 +49,23 @@ router.post("/", async (req, res) => {
   }).parse(req.body);
 
   const client = await createSaasClient(data);
+  if (client.email) {
+    try {
+      if (!emailService.isConfigured()) {
+        console.warn("[email] SES SMTP nao configurado; email de boas-vindas SaaS nao enviado.");
+      } else {
+        await emailService.sendWelcomeEmail({
+          name: client.contactName,
+          email: client.email,
+          login: client.accessLogin,
+          password: client.temporaryPassword,
+          businessName: client.businessName
+        });
+      }
+    } catch (err) {
+      console.error("[email] Falha ao enviar email de boas-vindas SaaS.", err);
+    }
+  }
   res.status(201).json(client);
 });
 
