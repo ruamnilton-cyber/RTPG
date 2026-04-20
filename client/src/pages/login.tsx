@@ -150,6 +150,14 @@ function AccessPanel({
   leadSent: boolean;
   selectedPlan: SubscriptionPlan;
 }) {
+  const [trialForm, setTrialForm] = useState({
+    businessName: "",
+    contactName: "",
+    phone: "",
+    email: "",
+    password: ""
+  });
+
   return (
     <div id="acesso" className="rounded-[1.75rem] border border-stone-200 bg-white p-5 text-stone-950 shadow-[0_22px_70px_rgba(28,18,10,0.16)] sm:p-6">
       <div className="mb-5">
@@ -177,9 +185,9 @@ function AccessPanel({
       </div>
 
       {tab === "login" ? (
-        <form onSubmit={handleLogin} className="space-y-4">
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="email" type="text" placeholder="E-mail ou usuario" required />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="password" type="password" placeholder="Senha" required />
+        <form onSubmit={handleLogin} className="space-y-4" autoComplete="on">
+          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="email" type="text" placeholder="E-mail ou usuario" autoComplete="username" required />
+          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="password" type="password" placeholder="Senha" autoComplete="current-password" required />
           {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
           <button className="btn-primary w-full py-3" disabled={loading}>{loading ? "Entrando..." : "Entrar"}</button>
           <button type="button" className="w-full text-center text-xs font-semibold text-stone-500 underline" onClick={() => changeTab("forgot")}>Esqueci minha senha</button>
@@ -187,16 +195,62 @@ function AccessPanel({
       ) : null}
 
       {tab === "trial" ? (
-        <form onSubmit={handleTrial} className="space-y-4">
+        <form onSubmit={handleTrial} className="space-y-4" autoComplete="off">
           <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
             Sem esperar atendimento: teste gratis do Plano {selectedPlan.name} por {SUBSCRIPTION_TRIAL_DAYS} dias.
           </div>
           <input type="hidden" name="planId" value={selectedPlan.id} />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="businessName" type="text" placeholder="Nome do restaurante ou bar" required />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="contactName" type="text" placeholder="Seu nome" required />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="phone" type="tel" placeholder="WhatsApp com DDD" required />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="email" type="email" placeholder="E-mail de acesso" required />
-          <input className="input !bg-white !text-stone-950 placeholder:text-stone-400" name="password" type="password" placeholder="Crie uma senha" required />
+          <input
+            className="input !bg-white !text-stone-950 placeholder:text-stone-400"
+            name="trialBusinessName"
+            type="text"
+            placeholder="Nome do restaurante ou bar"
+            value={trialForm.businessName}
+            autoComplete="organization"
+            onChange={(event) => setTrialForm((current) => ({ ...current, businessName: event.target.value }))}
+            required
+          />
+          <input
+            className="input !bg-white !text-stone-950 placeholder:text-stone-400"
+            name="trialContactName"
+            type="text"
+            placeholder="Seu nome"
+            value={trialForm.contactName}
+            autoComplete="name"
+            onChange={(event) => setTrialForm((current) => ({ ...current, contactName: event.target.value }))}
+            required
+          />
+          <input
+            className="input !bg-white !text-stone-950 placeholder:text-stone-400"
+            name="trialPhone"
+            type="tel"
+            placeholder="WhatsApp com DDD"
+            value={trialForm.phone}
+            autoComplete="tel"
+            onChange={(event) => setTrialForm((current) => ({ ...current, phone: event.target.value }))}
+            required
+          />
+          <input
+            className="input !bg-white !text-stone-950 placeholder:text-stone-400"
+            name="trialAccessEmail"
+            type="email"
+            placeholder="E-mail de acesso"
+            value={trialForm.email}
+            autoComplete="off"
+            autoCapitalize="none"
+            onChange={(event) => setTrialForm((current) => ({ ...current, email: event.target.value }))}
+            required
+          />
+          <input
+            className="input !bg-white !text-stone-950 placeholder:text-stone-400"
+            name="trialAccessPassword"
+            type="password"
+            placeholder="Crie sua senha"
+            value={trialForm.password}
+            autoComplete="new-password"
+            onChange={(event) => setTrialForm((current) => ({ ...current, password: event.target.value }))}
+            required
+          />
           {error ? <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p> : null}
           <button className="btn-primary w-full py-3" disabled={loading}>{loading ? "Criando teste..." : "Comecar agora"}</button>
         </form>
@@ -405,11 +459,11 @@ export function LoginPage() {
     const fd = new FormData(event.currentTarget);
     try {
       await signupTrial({
-        businessName: String(fd.get("businessName") ?? ""),
-        contactName: String(fd.get("contactName") ?? ""),
-        phone: String(fd.get("phone") ?? ""),
-        email: String(fd.get("email") ?? ""),
-        password: String(fd.get("password") ?? ""),
+        businessName: String(fd.get("trialBusinessName") ?? ""),
+        contactName: String(fd.get("trialContactName") ?? ""),
+        phone: String(fd.get("trialPhone") ?? ""),
+        email: String(fd.get("trialAccessEmail") ?? ""),
+        password: String(fd.get("trialAccessPassword") ?? ""),
         planId: String(fd.get("planId") ?? selectedPlanId)
       });
       navigate("/painel-dono");
