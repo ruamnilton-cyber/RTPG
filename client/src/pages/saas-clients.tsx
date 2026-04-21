@@ -13,23 +13,6 @@ type SaasPayment = {
   notes: string;
 };
 
-type SaasBillingCharge = {
-  id: string;
-  provider: "ASAAS";
-  externalId: string;
-  amount: number;
-  dueDate: string;
-  referenceMonth: string;
-  description: string;
-  status: "PENDENTE" | "PAGO" | "VENCIDO" | "CANCELADO" | "FALHOU";
-  invoiceUrl: string;
-  bankSlipUrl: string;
-  pixQrCode: string;
-  pixQrCodeBase64: string;
-  paidAt: string;
-  createdAt: string;
-};
-
 type SaasClient = {
   id: string;
   businessName: string;
@@ -41,8 +24,6 @@ type SaasClient = {
   linkedUserEmail: string;
   phone: string;
   email: string;
-  cpfCnpj: string;
-  asaasCustomerId: string;
   planName: string;
   monthlyFee: number;
   billingDay: number;
@@ -52,7 +33,6 @@ type SaasClient = {
   accessStatus: "LIBERADO" | "BLOQUEIO_AVISO" | "BLOQUEADO";
   notes: string;
   payments: SaasPayment[];
-  billingCharges: SaasBillingCharge[];
   createdAt: string;
 };
 
@@ -67,13 +47,79 @@ type SaasOverview = {
   };
 };
 
+const statusLabel: Record<SaasClient["status"], string> = {
+  ATIVO: "Ativo", TRIAL: "Trial", ATRASADO: "Atrasado", SUSPENSO: "Suspenso", CANCELADO: "Cancelado"
+};
+const accessLabel: Record<SaasClient["accessStatus"], string> = {
+  LIBERADO: "Liberado", BLOQUEIO_AVISO: "Aviso", BLOQUEADO: "Bloqueado"
+};
+const statusBg: Record<SaasClient["status"], { bg: string; color: string }> = {
+  ATIVO:     { bg: "color-mix(in srgb, #16a34a 25%, #1b1b1f)", color: "#4ade80" },
+  TRIAL:     { bg: "color-mix(in srgb, #2563eb 25%, #1b1b1f)", color: "#60a5fa" },
+  ATRASADO:  { bg: "color-mix(in srgb, #f59e0b 25%, #1b1b1f)", color: "#fcd34d" },
+  SUSPENSO:  { bg: "color-mix(in srgb, #dc2626 25%, #1b1b1f)", color: "#f87171" },
+  CANCELADO: { bg: "color-mix(in srgb, #374151 35%, #1b1b1f)", color: "#9ca3af" },
+};
+const accessBg: Record<SaasClient["accessStatus"], { bg: string; color: string }> = {
+  LIBERADO:       { bg: "color-mix(in srgb, #16a34a 25%, #1b1b1f)", color: "#4ade80" },
+  BLOQUEIO_AVISO: { bg: "color-mix(in srgb, #f59e0b 25%, #1b1b1f)", color: "#fcd34d" },
+  BLOQUEADO:      { bg: "color-mix(in srgb, #dc2626 25%, #1b1b1f)", color: "#f87171" },
+};
+
 function totalClientRevenue(client: SaasClient) {
-  return client.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  return client.payments.reduce((sum, p) => sum + p.amount, 0);
 }
 
-function currentReferenceMonth() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+function daysOverdue(client: SaasClient): number | null {
+  if (client.status !== "ATRASADO" && client.status !== "SUSPENSO") return null;
+  if (!client.nextDueDate) return null;
+  const due = new Date(client.nextDueDate);
+  const today = new Date();
+  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000));
+}
+
+function OverdueBadge({ days }: { days: number }) {
+  const color = days > 15 ? "#ef4444" : days > 7 ? "#f97316" : "#eab308";
+  return (
+    <span
+      className="rounded-full px-2 py-0.5 text-xs font-bold"
+      style={{ background: `${color}22`, color }}
+    >
+      {days}d atraso
+    </span>
+  );
+}
+
+function exportCSV(clients: SaasClient[]) {
+  const headers = [
+    "Restaurante", "Responsavel", "Email", "Telefone",
+    "Plano", "Mensalidade (R$)", "Faturamento Total (R$)",
+    "Status", "Acesso", "Proximo Vencimento", "Ultimo Pagamento", "Cadastro"
+  ];
+  const rows = clients.map(c => [
+    c.businessName,
+    c.contactName,
+    c.email,
+    c.phone,
+    c.planName,
+    c.monthlyFee.toFixed(2),
+    totalClientRevenue(c).toFixed(2),
+    statusLabel[c.status],
+    accessLabel[c.accessStatus],
+    c.nextDueDate || "",
+    c.lastPaymentDate || "",
+    c.createdAt ? c.createdAt.slice(0, 10) : ""
+  ]);
+  const csv = [headers, ...rows]
+    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `clientes-rtpg-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function SaasClientsPage() {
@@ -82,8 +128,7 @@ export function SaasClientsPage() {
   const [overview, setOverview] = useState<SaasOverview | null>(null);
   const [selectedClient, setSelectedClient] = useState<SaasClient | null>(null);
   const [search, setSearch] = useState("");
-  const [billingLoading, setBillingLoading] = useState(false);
-  const [billingResult, setBillingResult] = useState<{ client: SaasClient | null; charge: SaasBillingCharge } | null>(null);
+  const [tableSearch, setTableSearch] = useState("");
 
   async function load(nextSearch = "") {
     const [list, summary] = await Promise.all([
@@ -97,14 +142,25 @@ export function SaasClientsPage() {
     }
   }
 
-  useEffect(() => {
-    load();
-  }, [token]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [token]);
 
   const topRevenue = useMemo(
     () => [...clients].sort((a, b) => totalClientRevenue(b) - totalClientRevenue(a)).slice(0, 5),
     [clients]
   );
+
+  const filteredTable = useMemo(() => {
+    if (!tableSearch) return clients;
+    const q = tableSearch.toLowerCase();
+    return clients.filter(c =>
+      c.businessName.toLowerCase().includes(q) ||
+      c.contactName.toLowerCase().includes(q) ||
+      c.email.toLowerCase().includes(q) ||
+      c.phone.includes(q) ||
+      c.planName.toLowerCase().includes(q)
+    );
+  }, [clients, tableSearch]);
 
   return (
     <div className="space-y-5">
@@ -131,6 +187,102 @@ export function SaasClientsPage() {
         </div>
       ) : null}
 
+      {/* Planilha geral */}
+      <div className="card space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>
+              Visao geral
+            </p>
+            <h3 className="mt-1 text-xl font-bold">Todos os clientes</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <input
+              className="input w-56"
+              placeholder="Filtrar tabela..."
+              value={tableSearch}
+              onChange={e => setTableSearch(e.target.value)}
+            />
+            <button className="btn-primary" type="button" onClick={() => exportCSV(filteredTable)}>
+              Exportar CSV
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto rounded-xl">
+          <table className="table-base w-full min-w-[900px]">
+            <thead>
+              <tr>
+                <th>Restaurante</th>
+                <th>Responsavel</th>
+                <th>Contato</th>
+                <th>Plano</th>
+                <th className="text-right">Mensalidade</th>
+                <th className="text-right">Faturamento total</th>
+                <th>Status</th>
+                <th>Acesso</th>
+                <th>Vencimento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredTable.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-muted">Nenhum cliente encontrado.</td>
+                </tr>
+              ) : filteredTable.map(c => (
+                <tr
+                  key={c.id}
+                  className="cursor-pointer transition hover:opacity-75"
+                  onClick={() => setSelectedClient(c)}
+                >
+                  <td><strong>{c.businessName || "â€”"}</strong></td>
+                  <td>{c.contactName || "â€”"}</td>
+                  <td>
+                    <span className="block text-sm">{c.email || "â€”"}</span>
+                    <span className="block text-xs text-muted">{c.phone || ""}</span>
+                  </td>
+                  <td className="text-sm">{c.planName}</td>
+                  <td className="text-right font-semibold">{formatMoney(c.monthlyFee)}</td>
+                  <td className="text-right font-semibold">{formatMoney(totalClientRevenue(c))}</td>
+                  <td>
+                    <div className="flex flex-col gap-1">
+                      <span className="rounded-full px-2 py-1 text-xs font-semibold"
+                        style={{ background: statusBg[c.status].bg, color: statusBg[c.status].color }}>
+                        {statusLabel[c.status]}
+                      </span>
+                      {(() => { const d = daysOverdue(c); return d !== null ? <OverdueBadge days={d} /> : null; })()}
+                    </div>
+                  </td>
+                  <td>
+                    <span className="rounded-full px-2 py-1 text-xs font-semibold"
+                      style={{ background: accessBg[c.accessStatus].bg, color: accessBg[c.accessStatus].color }}>
+                      {accessLabel[c.accessStatus]}
+                    </span>
+                  </td>
+                  <td className="text-sm">{c.nextDueDate?.slice(0, 10) || "â€”"}</td>
+                </tr>
+              ))}
+            </tbody>
+            {filteredTable.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td colSpan={4} className="pt-3 font-semibold text-muted">
+                    Total â€” {filteredTable.length} cliente{filteredTable.length !== 1 ? "s" : ""}
+                  </td>
+                  <td className="pt-3 text-right font-semibold">
+                    {formatMoney(filteredTable.reduce((s, c) => s + c.monthlyFee, 0))}
+                  </td>
+                  <td className="pt-3 text-right font-semibold">
+                    {formatMoney(filteredTable.reduce((s, c) => s + totalClientRevenue(c), 0))}
+                  </td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
       <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-5">
           <form
@@ -146,7 +298,6 @@ export function SaasClientsPage() {
                   contactName: String(formData.get("contactName") ?? ""),
                   phone: String(formData.get("phone") ?? ""),
                   email: String(formData.get("email") ?? ""),
-                  cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                   accessLogin: String(formData.get("accessLogin")),
                   temporaryPassword: String(formData.get("temporaryPassword") ?? "12345"),
                   planName: String(formData.get("planName") ?? "Plano Base"),
@@ -157,8 +308,7 @@ export function SaasClientsPage() {
                   accessStatus: String(formData.get("accessStatus") ?? "LIBERADO"),
                   notes: String(formData.get("notes") ?? ""),
                   lastPaymentDate: "",
-                  payments: [],
-                  billingCharges: []
+                  payments: []
                 }
               });
               event.currentTarget.reset();
@@ -172,25 +322,21 @@ export function SaasClientsPage() {
               <h3 className="mt-2 text-2xl font-bold">Novo restaurante</h3>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1">
-                <span className="label">Nome do restaurante</span>
-                <input className="input" name="businessName" placeholder="Ex: Bar Cura Ressaca" />
-              </label>
-              <label className="space-y-1">
-                <span className="label">Responsavel</span>
-                <input className="input" name="contactName" placeholder="Nome do cliente" />
-              </label>
-              <label className="space-y-1">
-                <span className="label">WhatsApp</span>
-                <input className="input" name="phone" placeholder="DDD + numero" />
-              </label>
-              <label className="space-y-1">
-                <span className="label">Email de cobranca</span>
-                <input className="input" name="email" type="email" placeholder="cliente@email.com" />
-              </label>
               <label className="space-y-1 md:col-span-2">
-                <span className="label">CPF/CNPJ para Asaas</span>
-                <input className="input" name="cpfCnpj" inputMode="numeric" placeholder="CPF ou CNPJ do pagador" />
+                <span className="label">Nome do restaurante</span>
+                <input className="input" name="businessName" placeholder="Ex: Restaurante do JoÃ£o" required />
+              </label>
+              <label className="space-y-1">
+                <span className="label">ResponsÃ¡vel</span>
+                <input className="input" name="contactName" placeholder="Nome do responsÃ¡vel" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">Telefone</span>
+                <input className="input" name="phone" placeholder="(11) 99999-9999" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">E-mail</span>
+                <input className="input" name="email" type="email" placeholder="contato@restaurante.com" />
               </label>
               <label className="space-y-1">
                 <span className="label">Login do restaurante</span>
@@ -236,16 +382,9 @@ export function SaasClientsPage() {
               </label>
               <label className="space-y-1 md:col-span-2">
                 <span className="label">Observacoes internas</span>
-                <textarea
-                  className="input min-h-24"
-                  name="notes"
-                  placeholder="Anotacoes de contrato, cobranca e combinados"
-                />
+                <textarea className="input min-h-24" name="notes" placeholder="Anotacoes de contrato, cobranca e combinados" />
               </label>
             </div>
-            <p className="text-xs text-muted">
-              Aqui voce gera apenas o acesso inicial e os dados de cobranca. O restante do perfil do restaurante ele preenche no proprio sistema, e essas informacoes passam a aparecer aqui para voce acompanhar.
-            </p>
             <button className="btn-primary">Criar restaurante e acesso</button>
           </form>
 
@@ -261,7 +400,7 @@ export function SaasClientsPage() {
                     <span>{formatMoney(totalClientRevenue(client))}</span>
                   </div>
                   <p className="mt-2 text-sm text-muted">
-                    login {client.accessLogin} · mensalidade {formatMoney(client.monthlyFee)}
+                    {client.planName} Â· mensalidade {formatMoney(client.monthlyFee)}
                   </p>
                 </div>
               ))
@@ -282,28 +421,25 @@ export function SaasClientsPage() {
                 Buscar
               </button>
             </div>
-
             <div className="space-y-3">
               {clients.map((client) => (
                 <button
                   key={client.id}
                   type="button"
                   className="w-full rounded-3xl p-4 text-left surface-soft"
-                  onClick={() => {
-                    setSelectedClient(client);
-                    setBillingResult(null);
-                  }}
+                  onClick={() => setSelectedClient(client)}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <strong>{client.businessName}</strong>
                       <p className="text-sm text-muted">
-                        {client.contactName} · login {client.accessLogin} · vencimento {client.nextDueDate || "nao informado"}
+                        {client.contactName} Â· {client.email || client.accessLogin} Â· vence {client.nextDueDate?.slice(0, 10) || "â€”"}
                       </p>
                     </div>
                     <div className="text-right">
                       <strong>{formatMoney(client.monthlyFee)}</strong>
-                      <p className="text-xs text-muted">{client.status}</p>
+                      <p className="text-xs" style={{ color: statusBg[client.status].color }}>{statusLabel[client.status]}</p>
+                      {(() => { const d = daysOverdue(client); return d !== null ? <OverdueBadge days={d} /> : null; })()}
                     </div>
                   </div>
                 </button>
@@ -313,7 +449,7 @@ export function SaasClientsPage() {
 
           <div className="card space-y-4">
             {!selectedClient ? (
-              <p className="text-sm text-muted">Selecione um restaurante para ver login, receita, vencimento e acesso.</p>
+              <p className="text-sm text-muted">Clique em qualquer linha da tabela ou na lista para ver detalhes e editar.</p>
             ) : (
               <>
                 <form
@@ -331,7 +467,6 @@ export function SaasClientsPage() {
                         temporaryPassword: String(formData.get("temporaryPassword") ?? ""),
                         phone: String(formData.get("phone") ?? ""),
                         email: String(formData.get("email") ?? ""),
-                        cpfCnpj: String(formData.get("cpfCnpj") ?? ""),
                         planName: String(formData.get("planName") ?? ""),
                         monthlyFee: Number(formData.get("monthlyFee") ?? 0),
                         billingDay: Number(formData.get("billingDay") ?? 10),
@@ -346,7 +481,7 @@ export function SaasClientsPage() {
                   }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-bold">{selectedClient.businessName}</h3>
+                    <h3 className="text-xl font-bold">{selectedClient.businessName || "Cliente sem nome"}</h3>
                     <button
                       type="button"
                       className="btn-secondary"
@@ -360,16 +495,14 @@ export function SaasClientsPage() {
                       Excluir
                     </button>
                   </div>
-
                   <div className="grid gap-3 md:grid-cols-2">
                     <input className="input" name="businessName" defaultValue={selectedClient.businessName} placeholder="Nome do restaurante" />
                     <input className="input" name="contactName" defaultValue={selectedClient.contactName} placeholder="Responsavel" />
-                    <input className="input" name="accessLogin" defaultValue={selectedClient.accessLogin} />
+                    <input className="input" name="accessLogin" defaultValue={selectedClient.accessLogin} placeholder="Login" />
                     <input className="input" name="temporaryPassword" placeholder="Nova senha temporaria (opcional)" />
-                    <input className="input" name="phone" defaultValue={selectedClient.phone} />
-                    <input className="input" name="email" defaultValue={selectedClient.email} />
-                    <input className="input" name="cpfCnpj" defaultValue={selectedClient.cpfCnpj} placeholder="CPF/CNPJ para cobranca Asaas" />
-                    <input className="input" name="planName" defaultValue={selectedClient.planName} />
+                    <input className="input" name="phone" defaultValue={selectedClient.phone} placeholder="Telefone" />
+                    <input className="input" name="email" defaultValue={selectedClient.email} placeholder="E-mail" />
+                    <input className="input" name="planName" defaultValue={selectedClient.planName} placeholder="Plano" />
                     <input className="input" name="monthlyFee" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} />
                     <input className="input" name="billingDay" type="number" min="1" max="31" defaultValue={selectedClient.billingDay} />
                     <input className="input" name="nextDueDate" type="date" defaultValue={selectedClient.nextDueDate} />
@@ -388,177 +521,24 @@ export function SaasClientsPage() {
                     </select>
                     <textarea className="input md:col-span-2 min-h-24" name="notes" defaultValue={selectedClient.notes} />
                   </div>
-
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-3xl p-4 surface-soft">
                       <p className="text-xs text-muted">Mensalidade</p>
                       <strong>{formatMoney(selectedClient.monthlyFee)}</strong>
                     </div>
                     <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Receita acumulada</p>
+                      <p className="text-xs text-muted">Faturamento total</p>
                       <strong>{formatMoney(totalClientRevenue(selectedClient))}</strong>
                     </div>
                     <div className="rounded-3xl p-4 surface-soft">
                       <p className="text-xs text-muted">Acesso</p>
-                      <strong>{selectedClient.accessStatus}</strong>
+                      <strong style={{ color: accessBg[selectedClient.accessStatus].color }}>
+                        {accessLabel[selectedClient.accessStatus]}
+                      </strong>
                     </div>
                   </div>
-
-                  <div className="grid gap-3 md:grid-cols-3">
-                    <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Login do restaurante</p>
-                      <strong>{selectedClient.accessLogin}</strong>
-                    </div>
-                    <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Usuario tecnico</p>
-                      <strong>{selectedClient.linkedUserEmail || "Ainda nao vinculado"}</strong>
-                    </div>
-                    <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Restaurante vinculado</p>
-                      <strong>{selectedClient.linkedBarId || "Ainda nao vinculado"}</strong>
-                    </div>
-                    <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Cliente Asaas</p>
-                      <strong>{selectedClient.asaasCustomerId || "Ainda nao criado"}</strong>
-                    </div>
-                  </div>
-
                   <button className="btn-primary">Salvar alteracoes</button>
                 </form>
-
-                <form
-                  className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-4"
-                  onSubmit={async (event: FormEvent<HTMLFormElement>) => {
-                    event.preventDefault();
-                    const formData = new FormData(event.currentTarget);
-                    setBillingLoading(true);
-                    try {
-                      const result = await apiRequest<{ client: SaasClient | null; charge: SaasBillingCharge }>(
-                        `/saas-clients/${selectedClient.id}/billing/asaas-pix`,
-                        {
-                          method: "POST",
-                          token,
-                          body: {
-                            amount: Number(formData.get("amount") ?? selectedClient.monthlyFee),
-                            dueDate: String(formData.get("dueDate") ?? selectedClient.nextDueDate),
-                            referenceMonth: String(formData.get("referenceMonth") ?? currentReferenceMonth()),
-                            description: String(formData.get("description") ?? "")
-                          }
-                        }
-                      );
-                      setBillingResult(result);
-                      if (result.client) setSelectedClient(result.client);
-                      load(search);
-                    } finally {
-                      setBillingLoading(false);
-                    }
-                  }}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-[0.3em] text-emerald-700">Asaas</p>
-                      <h4 className="mt-1 text-lg font-bold">Gerar cobranca Pix automatica</h4>
-                      <p className="text-sm text-muted">
-                        Essa cobranca cai na sua conta Asaas da plataforma. Quando o Asaas confirmar, o pagamento entra no historico automaticamente.
-                      </p>
-                    </div>
-                    {!selectedClient.cpfCnpj ? (
-                      <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-                        Informe CPF/CNPJ antes
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <input className="input" name="amount" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} placeholder="Valor" required />
-                    <input className="input" name="dueDate" type="date" defaultValue={selectedClient.nextDueDate} required />
-                    <input className="input" name="referenceMonth" defaultValue={currentReferenceMonth()} placeholder="Referencia ex: 2026-04" />
-                    <input className="input" name="description" placeholder="Descricao opcional da cobranca" />
-                  </div>
-
-                  <button className="btn-primary mt-3" disabled={billingLoading}>
-                    {billingLoading ? "Gerando Pix..." : "Gerar Pix Asaas"}
-                  </button>
-
-                  {billingResult?.charge && billingResult.client?.id === selectedClient.id ? (
-                    <div className="mt-4 rounded-3xl bg-white p-4 shadow-sm">
-                      <div className="grid gap-4 md:grid-cols-[160px_1fr]">
-                        {billingResult.charge.pixQrCodeBase64 ? (
-                          <img
-                            className="h-40 w-40 rounded-2xl border border-stone-200 bg-white object-contain p-2"
-                            src={`data:image/png;base64,${billingResult.charge.pixQrCodeBase64}`}
-                            alt="QR Code Pix Asaas"
-                          />
-                        ) : null}
-                        <div className="min-w-0 space-y-3">
-                          <div>
-                            <p className="text-xs text-muted">Status</p>
-                            <strong>{billingResult.charge.status}</strong>
-                          </div>
-                          <textarea className="input min-h-24 text-xs" readOnly value={billingResult.charge.pixQrCode} />
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              className="btn-secondary"
-                              onClick={() => navigator.clipboard.writeText(billingResult.charge.pixQrCode)}
-                            >
-                              Copiar Pix
-                            </button>
-                            {billingResult.charge.invoiceUrl ? (
-                              <a className="btn-secondary" href={billingResult.charge.invoiceUrl} target="_blank" rel="noreferrer">
-                                Abrir cobranca
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </form>
-
-                <div className="rounded-3xl p-4 surface-soft">
-                  <h4 className="text-lg font-bold">Cobrancas Asaas</h4>
-                  <div className="mt-3 space-y-3">
-                    {selectedClient.billingCharges.length === 0 ? (
-                      <p className="text-sm text-muted">Nenhuma cobranca Asaas gerada ainda.</p>
-                    ) : (
-                      selectedClient.billingCharges.map((charge) => (
-                        <div key={charge.id} className="rounded-3xl bg-white p-4">
-                          <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <strong>{formatMoney(charge.amount)}</strong>
-                              <p className="text-sm text-muted">
-                                {charge.referenceMonth || "Sem referencia"} - vence {charge.dueDate} - {charge.status}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {charge.invoiceUrl ? (
-                                <a className="btn-secondary" href={charge.invoiceUrl} target="_blank" rel="noreferrer">
-                                  Abrir
-                                </a>
-                              ) : null}
-                              <button
-                                type="button"
-                                className="btn-secondary"
-                                onClick={async () => {
-                                  const client = await apiRequest<SaasClient>(
-                                    `/saas-clients/${selectedClient.id}/billing/${charge.id}/refresh`,
-                                    { method: "POST", token }
-                                  );
-                                  setSelectedClient(client);
-                                  load(search);
-                                }}
-                              >
-                                Atualizar status
-                              </button>
-                            </div>
-                          </div>
-                          {charge.paidAt ? <p className="mt-2 text-xs text-emerald-700">Pago em {charge.paidAt.slice(0, 10)}</p> : null}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
 
                 <form
                   className="rounded-3xl p-4 surface-soft"
@@ -598,10 +578,10 @@ export function SaasClientsPage() {
                       <div key={payment.id} className="rounded-3xl p-4 surface-soft">
                         <div className="flex items-center justify-between gap-3">
                           <strong>{formatMoney(payment.amount)}</strong>
-                          <span className="text-sm text-muted">{payment.paidAt}</span>
+                          <span className="text-sm text-muted">{payment.paidAt?.slice(0, 10)}</span>
                         </div>
                         <p className="mt-2 text-sm text-muted">
-                          {payment.referenceMonth || "Sem referencia"} {payment.notes ? `· ${payment.notes}` : ""}
+                          {payment.referenceMonth || "Sem referencia"}{payment.notes ? ` Â· ${payment.notes}` : ""}
                         </p>
                       </div>
                     ))
