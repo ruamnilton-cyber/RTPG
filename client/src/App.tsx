@@ -2,6 +2,7 @@ import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/layout";
 import { OwnerLayout } from "./components/owner-layout";
 import { RestaurantOwnerLayout } from "./components/restaurant-owner-layout";
+import { PaymentWall } from "./components/payment-wall";
 import { useAuth } from "./state/auth";
 import { AiPanelPage } from "./pages/ai-panel";
 import { BarsPage } from "./pages/bars";
@@ -34,17 +35,21 @@ function RequireAuth() {
   const { token, loading } = useAuth();
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center text-muted">Carregando sessão...</div>;
+    return <div className="flex min-h-screen items-center justify-center text-muted">Carregando sessao...</div>;
   }
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <PaymentWall>
+      <Outlet />
+    </PaymentWall>
+  );
 }
 
-/** Dono do restaurante (ADMIN): painel próprio, sem o menu lateral da equipe. */
+/** Dono do restaurante (ADMIN): painel proprio, sem o menu lateral da equipe. */
 function AdminRestaurantRoutes() {
   return (
     <Routes>
