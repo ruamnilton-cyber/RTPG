@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/common";
 import { apiRequest } from "../lib/api";
@@ -86,9 +86,96 @@ function CompactClientList({
           ))}
         </div>
       )}
+
+      <section className="card space-y-5">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>
+            Integracao de pagamentos
+          </p>
+          <h3 className="mt-1 text-xl font-bold">Configurar Asaas</h3>
+          <p className="mt-1 text-sm text-muted">
+            Configure sua conta Asaas para cobrar restaurantes via PIX automaticamente.
+            A chave e armazenada criptografada e nunca e exibida novamente apos salvar.
+          </p>
+        </div>
+        <AsaasConfigForm token={token} />
+      </section>
     </div>
   );
 }
+
+function AsaasConfigForm({ token }: { token: string | null }) {
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
+    setSaved(false);
+    const fd = new FormData(e.currentTarget);
+    const apiKey = String(fd.get("apiKey") ?? "").trim();
+    const webhookToken = String(fd.get("webhookToken") ?? "").trim();
+    const sandbox = fd.get("sandbox") === "on";
+    if (!apiKey) { setError("Informe a chave de API do Asaas."); return; }
+    setLoading(true);
+    try {
+      await apiRequest("/saas-billing/platform-config", {
+        method: "PUT", token,
+        body: { apiKey, sandbox, ...(webhookToken ? { webhookToken } : {}) }
+      });
+      setSaved(true);
+      e.currentTarget.reset();
+    } catch (err) {
+      setError((err as Error).message ?? "Erro ao salvar configuracao.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form className="space-y-4" onSubmit={handleSubmit}>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="space-y-1 md:col-span-2">
+          <span className="label">Chave de API do Asaas</span>
+          <input
+            className="input font-mono text-sm"
+            name="apiKey"
+            type="password"
+            placeholder="$aas_xxxxxxxxxxxxxxxxxxxxx"
+            autoComplete="off"
+            required
+          />
+          <p className="text-xs text-muted">Obtida em: Asaas &rarr; Configuracoes &rarr; Integracoes.</p>
+        </label>
+        <label className="space-y-1">
+          <span className="label">Token do Webhook (opcional)</span>
+          <input
+            className="input font-mono text-sm"
+            name="webhookToken"
+            type="password"
+            placeholder="Token secreto do webhook"
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted">Usado para validar notificacoes do Asaas.</p>
+        </label>
+        <label className="flex items-center gap-3 rounded-xl border p-4" style={{ borderColor: "var(--color-border)" }}>
+          <input name="sandbox" type="checkbox" className="h-4 w-4 accent-[var(--color-primary)]" defaultChecked />
+          <div>
+            <span className="font-semibold">Modo Sandbox</span>
+            <p className="text-xs text-muted">Desmarque apenas em producao com conta Asaas real.</p>
+          </div>
+        </label>
+      </div>
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      {saved && <p className="text-sm text-green-600">Configuracao salva com sucesso!</p>}
+      <button className="btn-primary" type="submit" disabled={loading}>
+        {loading ? "Salvando..." : "Salvar configuracao do Asaas"}
+      </button>
+    </form>
+  );
+}
+
 
 export function OwnerManagerPage() {
   const { token } = useAuth();
