@@ -669,6 +669,16 @@ export function LoginPage() {
             </div>
           </div>
         </section>
+
+      <footer className="border-t border-[#e3d4bf] bg-[#21170f] px-5 py-6">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 md:flex-row md:items-center md:justify-between text-sm text-[#a8936e]">
+          <p>RTPG &copy; {new Date().getFullYear()} &mdash; PDV e gestao para restaurantes</p>
+          <div className="flex gap-5">
+            <a href="/privacidade" className="hover:text-[#f3e1a8] transition">Politica de Privacidade</a>
+            <a href="/termos" className="hover:text-[#f3e1a8] transition">Termos de Uso</a>
+          </div>
+        </div>
+      </footer>
       </main>
     </div>
   );
