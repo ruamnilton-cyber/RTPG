@@ -28,7 +28,7 @@ export const palettes: PaletteDefinition[] = [
     id: "verde-bege-marrom",
     name: "Verde Escuro + Bege + Marrom",
     description: "Acolhedor e gastronômico.",
-    colors: { primary: "#2d4f3a", secondary: "#dccfb1", accent: "#8d6743", background: "#f4efe6", surface: "#fffaf2", surfaceAlt: "#ede4d4", menu: "#243e2e", text: "#1f291f", muted: "#6d715f", border: "#d0c0aa", badge: "#e4d7bf" }
+    colors: { primary: "#2d4f3a", secondary: "#dccfb1", accent: "#8d6743", background: "#f4efe6", surface: "#fffaf2", surfaceAlt: "#ede4d4", menu: "#243e2e", text: "#1f291f", muted: "#6b6e5d", border: "#d0c0aa", badge: "#e4d7bf" }
   },
   {
     id: "bordo-preto-offwhite",
@@ -40,13 +40,13 @@ export const palettes: PaletteDefinition[] = [
     id: "azul-branco-dourado",
     name: "Azul Marinho + Branco + Dourado",
     description: "Visual limpo e refinado.",
-    colors: { primary: "#133d68", secondary: "#fefefe", accent: "#d4a93e", background: "#eef4fa", surface: "#ffffff", surfaceAlt: "#dfe9f4", menu: "#0f2f4f", text: "#102133", muted: "#607384", border: "#c7d7e7", badge: "#e3edf6" }
+    colors: { primary: "#133d68", secondary: "#fefefe", accent: "#d4a93e", background: "#eef4fa", surface: "#ffffff", surfaceAlt: "#dfe9f4", menu: "#0f2f4f", text: "#102133", muted: "#5e7182", border: "#c7d7e7", badge: "#e3edf6" }
   },
   {
     id: "terracota-creme-oliva",
     name: "Terracota + Creme + Verde Oliva",
     description: "Quente, artesanal e moderno.",
-    colors: { primary: "#b45a3c", secondary: "#fbf2df", accent: "#6b7b43", background: "#f8f1e6", surface: "#fffaf4", surfaceAlt: "#efe5d3", menu: "#7f412d", text: "#32241b", muted: "#7f6d5d", border: "#d9c7b2", badge: "#ede2cf" }
+    colors: { primary: "#ab5539", secondary: "#fbf2df", accent: "#6b7b43", background: "#f8f1e6", surface: "#fffaf4", surfaceAlt: "#efe5d3", menu: "#7f412d", text: "#32241b", muted: "#7c6b5b", border: "#d9c7b2", badge: "#ede2cf" }
   },
   {
     id: "chumbo-laranja-branco",
