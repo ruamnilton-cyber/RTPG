@@ -19,6 +19,7 @@ import cashierRoutes from "./routes/cashier";
 import paymentsRoutes from "./routes/payments";
 import customersRoutes from "./routes/customers";
 import saasClientsRoutes from "./routes/saas-clients";
+import saasBillingRoutes from "./routes/saas-billing";
 import plansRoutes from "./routes/plans";
 import adminRoutes from "./routes/admin";
 import billingRoutes from "./routes/billing";
@@ -51,6 +52,7 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/cashier", cashierRoutes);
 app.use("/api/customers", customersRoutes);
 app.use("/api/saas-clients", saasClientsRoutes);
+app.use("/api/saas-billing", saasBillingRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/billing", billingRoutes);
 app.use("/api/plans", plansRoutes);
@@ -68,6 +70,6 @@ app.get("*", (_req, res) => {
 app.use(errorHandler);
 
 app.listen(appEnv.port, () => {
-  console.log(`RTPG Gestão disponível em http://localhost:${appEnv.port}`);
+  console.log(`RTPG Gestao disponivel em http://localhost:${appEnv.port}`);
   console.log(`Dados persistidos em: ${appEnv.storageDir}`);
 });
