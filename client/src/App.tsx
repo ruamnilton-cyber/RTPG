@@ -14,10 +14,12 @@ import { FinanceHubPage } from "./pages/finance-hub";
 import { InventoryPage } from "./pages/inventory";
 import { KdsPage } from "./pages/kds";
 import { LoginPage } from "./pages/login";
+import { OnboardingPage } from "./pages/onboarding";
 import { OrganizationPage } from "./pages/organization";
 import { OwnerHubPage } from "./pages/owner-hub";
 import { OwnerManagerPage } from "./pages/owner-manager";
 import { OrdersCenterPage } from "./pages/orders-center";
+import { PrivacyPolicyPage } from "./pages/privacy-policy";
 import { ProductsPage } from "./pages/products";
 import { QrCodesPage } from "./pages/qrcodes";
 import { RecipesPage } from "./pages/recipes";
@@ -29,6 +31,7 @@ import { SettingsPage } from "./pages/settings";
 import { SystemControlPage } from "./pages/system-control";
 import { SuppliesPage } from "./pages/supplies";
 import { TablesPage } from "./pages/tables";
+import { TermsPage } from "./pages/terms";
 import { UsersPage } from "./pages/users";
 
 function RequireAuth() {
@@ -91,6 +94,7 @@ function RestaurantAdminRoutes() {
     <Routes>
       <Route path="/clientes-saas" element={<Navigate to="/painel-dono" replace />} />
       <Route path="/meu-gestor/*" element={<Navigate to="/painel-dono" replace />} />
+      <Route path="/onboarding" element={<OnboardingPage />} />
       <Route path="/painel-dono" element={<RestaurantOwnerLayout />}>
         <Route index element={<OwnerHubPage />} />
         <Route path="mesas" element={<TablesPage />} />
@@ -173,6 +177,8 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+      <Route path="/termos" element={<TermsPage />} />
       <Route element={<RequireAuth />}>
         <Route path="/*" element={<RoleSplitRoutes />} />
       </Route>
