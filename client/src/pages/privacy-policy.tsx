@@ -2,146 +2,128 @@ import { Link } from "react-router-dom";
 
 export function PrivacyPolicyPage() {
   return (
-    <div className="min-h-screen bg-[#fffaf2]">
-      <header className="border-b border-[#e3d4bf] bg-white px-5 py-4">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <Link to="/login" className="flex items-center gap-2">
-            <span className="text-sm font-black uppercase tracking-[0.24em] text-[#8f5f31]">RTPG</span>
-          </Link>
-          <Link to="/login" className="text-sm font-bold text-[#8f5f31] hover:underline">Voltar ao inicio</Link>
+    <div className="min-h-screen" style={{ background: "var(--color-background)" }}>
+      <header className="border-b px-5 py-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
+        <div className="mx-auto flex max-w-3xl items-center justify-between">
+          <span className="text-sm font-bold" style={{ color: "var(--color-foreground)" }}>RTPG</span>
+          <Link to="/login" className="text-sm text-muted hover:underline">Voltar</Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-5 py-12 lg:px-8">
-        <h1 className="text-4xl font-black tracking-tight text-[#21170f]">Politica de Privacidade</h1>
-        <p className="mt-2 text-sm text-stone-500">Ultima atualizacao: abril de 2026</p>
+      <main className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
+        <h1 className="text-3xl font-bold" style={{ color: "var(--color-foreground)" }}>Politica de Privacidade</h1>
+        <p className="mt-1 text-sm text-muted">Ultima atualizacao: abril de 2026</p>
 
-        <div className="mt-10 space-y-8 text-stone-700 leading-relaxed">
+        <div className="mt-10 space-y-8 text-sm leading-7" style={{ color: "var(--color-foreground)" }}>
+
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">1. Quem somos</h2>
-            <p className="mt-3">
-              O RTPG e uma plataforma de gestao para restaurantes operada por seus proprietarios. Esta Politica de Privacidade
-              descreve como coletamos, usamos e protegemos seus dados pessoais, em conformidade com a
-              Lei Geral de Protecao de Dados Pessoais (LGPD — Lei no 13.709/2018).
+            <h2 className="text-base font-bold">1. Quem somos</h2>
+            <p className="mt-2 text-muted">
+              O RTPG e uma plataforma de gestao para restaurantes. Esta Politica descreve como coletamos,
+              usamos e protegemos seus dados pessoais, em conformidade com a LGPD (Lei no 13.709/2018).
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">2. Dados que coletamos</h2>
-            <p className="mt-3">Coletamos os seguintes dados pessoais para prestacao do servico:</p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
-              <li><strong>Dados de cadastro:</strong> nome, e-mail, telefone e razao social do estabelecimento.</li>
-              <li><strong>Dados de acesso:</strong> login, senha criptografada e historico de sessoes.</li>
-              <li><strong>Dados operacionais:</strong> pedidos, produtos, insumos, clientes do restaurante e movimentacoes financeiras.</li>
-              <li><strong>Dados de pagamento:</strong> informacoes de cobranca processadas pelo gateway Asaas (nao armazenamos dados de cartao).</li>
-              <li><strong>Dados tecnicos:</strong> endereco IP, tipo de navegador e logs de acesso para seguranca e diagnostico.</li>
+            <h2 className="text-base font-bold">2. Dados que coletamos</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
+              <li><strong className="text-inherit">Cadastro:</strong> nome, e-mail, telefone e razao social.</li>
+              <li><strong className="text-inherit">Acesso:</strong> login, senha criptografada e historico de sessoes.</li>
+              <li><strong className="text-inherit">Operacao:</strong> pedidos, produtos, insumos, clientes e financeiro do restaurante.</li>
+              <li><strong className="text-inherit">Pagamento:</strong> dados processados pelo gateway Asaas (nao armazenamos cartoes).</li>
+              <li><strong className="text-inherit">Tecnicos:</strong> IP, navegador e logs de acesso para seguranca.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">3. Como usamos seus dados</h2>
-            <p className="mt-3">Seus dados sao utilizados exclusivamente para:</p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
+            <h2 className="text-base font-bold">3. Como usamos seus dados</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
               <li>Prestacao e melhoria dos servicos do RTPG;</li>
-              <li>Comunicacao sobre sua conta, pagamentos e atualizacoes do sistema;</li>
-              <li>Prevencao de fraudes e garantia da seguranca da plataforma;</li>
-              <li>Cumprimento de obrigacoes legais e regulatorias.</li>
+              <li>Comunicacao sobre conta, pagamentos e atualizacoes;</li>
+              <li>Prevencao de fraudes e seguranca da plataforma;</li>
+              <li>Cumprimento de obrigacoes legais.</li>
             </ul>
-            <p className="mt-3">Nao vendemos, alugamos ou compartilhamos seus dados com terceiros para fins comerciais.</p>
+            <p className="mt-2 text-muted">Nao vendemos nem compartilhamos seus dados com terceiros para fins comerciais.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">4. Base legal para o tratamento</h2>
-            <p className="mt-3">O tratamento de dados pessoais e realizado com base nos seguintes fundamentos da LGPD:</p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
-              <li><strong>Execucao de contrato</strong> (art. 7o, V): para operacao da sua conta e prestacao do servico contratado.</li>
-              <li><strong>Cumprimento de obrigacao legal</strong> (art. 7o, II): para atendimento de exigencias fiscais e regulatorias.</li>
-              <li><strong>Interesses legitimos</strong> (art. 7o, IX): para seguranca, prevencao de fraudes e melhoria do servico.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-xl font-black text-[#21170f]">5. Compartilhamento de dados</h2>
-            <p className="mt-3">Podemos compartilhar dados com terceiros apenas nas seguintes situacoes:</p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
-              <li><strong>Processadores de pagamento (Asaas):</strong> para cobranca e confirmacao de pagamentos via PIX.</li>
-              <li><strong>Provedores de infraestrutura (AWS):</strong> para hospedagem segura dos dados.</li>
-              <li><strong>Autoridades publicas:</strong> quando exigido por lei ou ordem judicial.</li>
+            <h2 className="text-base font-bold">4. Base legal</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
+              <li><strong className="text-inherit">Execucao de contrato</strong> (art. 7o, V): para operar sua conta e prestar o servico.</li>
+              <li><strong className="text-inherit">Obrigacao legal</strong> (art. 7o, II): para exigencias fiscais e regulatorias.</li>
+              <li><strong className="text-inherit">Interesse legitimo</strong> (art. 7o, IX): para seguranca e melhoria do servico.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">6. Retencao de dados</h2>
-            <p className="mt-3">
-              Mantemos seus dados pelo periodo necessario para a prestacao do servico e cumprimento de obrigacoes legais.
-              Apos o encerramento da conta, os dados sao retidos por ate 5 (cinco) anos para fins fiscais e legais,
-              conforme exigido pela legislacao brasileira, e entao excluidos de forma segura.
+            <h2 className="text-base font-bold">5. Compartilhamento</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
+              <li><strong className="text-inherit">Asaas:</strong> gateway de pagamento para cobrancas via PIX.</li>
+              <li><strong className="text-inherit">AWS:</strong> hospedagem da infraestrutura.</li>
+              <li><strong className="text-inherit">Autoridades:</strong> quando exigido por lei ou ordem judicial.</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="text-base font-bold">6. Retencao</h2>
+            <p className="mt-2 text-muted">
+              Dados sao mantidos pelo periodo necessario para o servico e obrigacoes legais.
+              Apos cancelamento da conta, retemos por ate 5 anos para fins fiscais e depois excluimos de forma segura.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">7. Seus direitos (LGPD)</h2>
-            <p className="mt-3">Voce tem os seguintes direitos em relacao aos seus dados pessoais:</p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
-              <li>Confirmacao da existencia de tratamento e acesso aos dados;</li>
-              <li>Correcao de dados incompletos, inexatos ou desatualizados;</li>
-              <li>Anonimizacao, bloqueio ou eliminacao de dados desnecessarios;</li>
-              <li>Portabilidade dos dados a outro fornecedor de servico;</li>
-              <li>Eliminacao dos dados tratados com base no consentimento;</li>
-              <li>Informacao sobre terceiros com quem os dados sao compartilhados;</li>
+            <h2 className="text-base font-bold">7. Seus direitos (LGPD)</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
+              <li>Acesso e confirmacao do tratamento dos seus dados;</li>
+              <li>Correcao de dados incompletos ou incorretos;</li>
+              <li>Eliminacao de dados desnecessarios;</li>
+              <li>Portabilidade para outro fornecedor;</li>
+              <li>Informacao sobre terceiros com quem compartilhamos;</li>
               <li>Revogacao do consentimento a qualquer momento.</li>
             </ul>
-            <p className="mt-3">
-              Para exercer seus direitos, entre em contato pelo e-mail informado na secao de suporte da plataforma.
-              Respondemos em ate 15 dias uteis.
-            </p>
+            <p className="mt-2 text-muted">Respondemos solicitacoes em ate 15 dias uteis pelo suporte da plataforma.</p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">8. Seguranca dos dados</h2>
-            <p className="mt-3">
-              Adotamos medidas tecnicas e organizacionais adequadas para proteger seus dados, incluindo:
-            </p>
-            <ul className="mt-3 list-disc pl-6 space-y-2">
+            <h2 className="text-base font-bold">8. Seguranca</h2>
+            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
               <li>Criptografia AES-256-GCM para dados sensiveis;</li>
-              <li>Transporte via HTTPS com HSTS habilitado;</li>
-              <li>Controle de acesso baseado em perfis (RBAC);</li>
-              <li>Rate limiting e bloqueio de tentativas excessivas de login;</li>
+              <li>Transporte via HTTPS com HSTS;</li>
+              <li>Controle de acesso por perfis (RBAC);</li>
+              <li>Rate limiting em login e billing;</li>
               <li>Backups periodicos com retencao segura.</li>
             </ul>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">9. Cookies e tecnologias semelhantes</h2>
-            <p className="mt-3">
-              Utilizamos cookies de sessao estritamente necessarios para autenticacao e funcionamento do sistema.
-              Nao utilizamos cookies de rastreamento ou publicidade.
+            <h2 className="text-base font-bold">9. Cookies</h2>
+            <p className="mt-2 text-muted">
+              Usamos apenas cookies de sessao estritamente necessarios para autenticacao.
+              Nenhum cookie de rastreamento ou publicidade e utilizado.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">10. Alteracoes nesta politica</h2>
-            <p className="mt-3">
-              Podemos atualizar esta Politica de Privacidade periodicamente. Notificaremos usuarios sobre mudancas
-              relevantes por e-mail ou aviso na plataforma com pelo menos 15 dias de antecedencia.
-              O uso continuado do servico apos a notificacao implica aceitacao das alteracoes.
+            <h2 className="text-base font-bold">10. Alteracoes</h2>
+            <p className="mt-2 text-muted">
+              Notificaremos mudancas relevantes por e-mail ou aviso na plataforma com pelo menos 15 dias de antecedencia.
             </p>
           </section>
 
           <section>
-            <h2 className="text-xl font-black text-[#21170f]">11. Contato e Encarregado (DPO)</h2>
-            <p className="mt-3">
-              Para duvidas, solicitacoes ou reclamacoes sobre o tratamento de seus dados pessoais, entre em contato
-              pelo painel de suporte da plataforma ou pelo e-mail disponivel na area de configuracoes da sua conta.
+            <h2 className="text-base font-bold">11. Contato</h2>
+            <p className="mt-2 text-muted">
+              Duvidas ou solicitacoes: use o suporte disponivel dentro da plataforma ou o e-mail nas configuracoes da conta.
             </p>
           </section>
         </div>
 
-        <div className="mt-12 border-t border-[#e3d4bf] pt-8 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-sm text-stone-500">
-          <p>RTPG &copy; {new Date().getFullYear()} &mdash; Todos os direitos reservados</p>
+        <div className="mt-12 border-t pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-muted" style={{ borderColor: "var(--color-border)" }}>
+          <span>RTPG &copy; {new Date().getFullYear()}</span>
           <div className="flex gap-4">
-            <Link to="/privacidade" className="hover:text-[#8f5f31]">Privacidade</Link>
-            <Link to="/termos" className="hover:text-[#8f5f31]">Termos de uso</Link>
+            <Link to="/privacidade" className="hover:underline">Privacidade</Link>
+            <Link to="/termos" className="hover:underline">Termos de uso</Link>
           </div>
         </div>
       </main>
