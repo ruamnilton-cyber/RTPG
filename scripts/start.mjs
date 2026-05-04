@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveDatabaseUrl } from "./data-dir.mjs";
@@ -16,6 +16,17 @@ function findNodeModulesBin(relPath) {
     if (existsSync(c)) return c;
   }
   throw new Error(`Não encontrado: node_modules/${relPath}`);
+}
+
+// Carrega .env se existir
+const dotenvPath = path.join(projectRoot, ".env");
+if (existsSync(dotenvPath)) {
+  for (const line of readFileSync(dotenvPath, "utf8").split("\n")) {
+    const match = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].replace(/^['"]|['"]$/g, "");
+    }
+  }
 }
 
 const env = {

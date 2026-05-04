@@ -19,20 +19,28 @@ import cashierRoutes from "./routes/cashier";
 import paymentsRoutes from "./routes/payments";
 import customersRoutes from "./routes/customers";
 import saasClientsRoutes from "./routes/saas-clients";
-import saasBillingRoutes from "./routes/saas-billing";
-import plansRoutes from "./routes/plans";
-import adminRoutes from "./routes/admin";
-import billingRoutes from "./routes/billing";
+import emailConfigRoutes from "./routes/email-config";
 import { errorHandler } from "./middleware/error-handler";
-import { applySecurityHeaders, publicStorageGuard } from "./middleware/security";
 import { appEnv } from "./env";
+import { startTelegramBot } from "./services/telegram-bot";
 
 const app = express();
 
-app.disable("x-powered-by");
-app.use(applySecurityHeaders);
-app.use(cors({ allowedHeaders: ["Content-Type", "Authorization", "X-Bar-Id"] }));
-app.use(express.json({ limit: "8mb" }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : null;
+
+app.use(cors({
+  origin: allowedOrigins
+    ? (origin, cb) => {
+        if (!origin || allowedOrigins.includes(origin)) cb(null, true);
+        else cb(new Error("CORS not allowed"));
+      }
+    : true,
+  credentials: true
+}));
+
+app.use(express.json());
 app.use(cookieParser());
 
 app.get("/api/health", (_req, res) => {
@@ -52,14 +60,10 @@ app.use("/api/whatsapp", whatsappRoutes);
 app.use("/api/cashier", cashierRoutes);
 app.use("/api/customers", customersRoutes);
 app.use("/api/saas-clients", saasClientsRoutes);
-app.use("/api/saas-billing", saasBillingRoutes);
 app.use("/api/payments", paymentsRoutes);
-app.use("/api/billing", billingRoutes);
-app.use("/api/plans", plansRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/admin", adminRoutes);
+app.use("/api/email", emailConfigRoutes);
 app.use("/public", publicRoutes);
-app.use("/storage-files", publicStorageGuard, express.static(appEnv.storageDir));
+app.use("/storage-files", express.static(appEnv.storageDir));
 
 const distClientDir = path.join(appEnv.projectRoot, "dist", "client");
 app.use(express.static(distClientDir));
@@ -70,6 +74,7 @@ app.get("*", (_req, res) => {
 app.use(errorHandler);
 
 app.listen(appEnv.port, () => {
-  console.log(`RTPG Gestao disponivel em http://localhost:${appEnv.port}`);
+  console.log(`RTPG Gestão disponível em http://localhost:${appEnv.port}`);
   console.log(`Dados persistidos em: ${appEnv.storageDir}`);
+  startTelegramBot();
 });

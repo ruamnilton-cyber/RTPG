@@ -1,168 +1,176 @@
 import nodemailer from "nodemailer";
-import { appEnv } from "../env";
+import { getStoredSetting } from "./system-settings";
 
-export type WelcomeEmailInput = {
-  name: string;
-  email: string;
-  password?: string;
-  login?: string;
-  businessName?: string;
+type SmtpConfig = {
+  host: string;
+  port: number;
+  secure: boolean;
+  user: string;
+  pass: string;
+  fromName: string;
 };
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+async function getSmtpConfig(): Promise<SmtpConfig | null> {
+  const config = await getStoredSetting<SmtpConfig | null>("smtp_config", null);
+  if (!config || !config.host || !config.user || !config.pass) return null;
+  return config;
 }
 
-function isSesConfigured() {
-  return Boolean(appEnv.ses.host && appEnv.ses.port && appEnv.ses.user && appEnv.ses.pass && appEnv.ses.fromEmail);
+export async function isEmailConfigured(): Promise<boolean> {
+  const config = await getSmtpConfig();
+  return config !== null;
 }
 
-function getTransporter() {
-  if (!isSesConfigured()) {
-    throw new Error("SES SMTP nao configurado. Preencha SES_SMTP_USER, SES_SMTP_PASS e SES_FROM_EMAIL.");
-  }
+export async function sendEmail(params: {
+  to: string;
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const config = await getSmtpConfig();
+  if (!config) throw new Error("E-mail não configurado. Acesse Configurações → E-mail e SMTP.");
 
-  return nodemailer.createTransport({
-    host: appEnv.ses.host,
-    port: appEnv.ses.port,
-    secure: appEnv.ses.port === 465,
-    auth: {
-      user: appEnv.ses.user,
-      pass: appEnv.ses.pass
-    }
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.pass }
+  });
+
+  await transporter.sendMail({
+    from: `"${config.fromName || "RTPG Gestão"}" <${config.user}>`,
+    to: params.to,
+    subject: params.subject,
+    html: params.html
   });
 }
 
-function buildWelcomeHtml(input: WelcomeEmailInput) {
-  const name = escapeHtml(input.name || "cliente");
-  const toEmail = escapeHtml(input.email);
-  const login = escapeHtml(input.login || input.email);
-  const password = input.password ? escapeHtml(input.password) : "";
-  const businessName = input.businessName ? escapeHtml(input.businessName) : "";
-  const appUrl = escapeHtml(appEnv.appBaseUrl);
-  const fromName = escapeHtml(appEnv.ses.fromName || "RTPG App");
+export async function sendLeadWelcomeEmail(params: {
+  to: string;
+  nome: string;
+  restaurante: string;
+}): Promise<void> {
+  const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Arial,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.10)">
 
-  const passwordRow = password
-    ? `
-      <tr>
-        <td style="padding:10px 0;color:#64748b;font-size:14px;">Senha temporaria</td>
-        <td style="padding:10px 0;text-align:right;color:#0f172a;font-size:14px;font-weight:700;">${password}</td>
-      </tr>`
-    : "";
+    <div style="background:linear-gradient(135deg,#1c1007,#7a4f18);padding:36px 32px;text-align:center">
+      <p style="color:#e8c97a;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;margin:0 0 8px">RTPG Gestão</p>
+      <h1 style="color:#ffffff;font-size:26px;margin:0;font-weight:700">Solicitação recebida!</h1>
+    </div>
 
-  const businessRow = businessName
-    ? `
-      <tr>
-        <td style="padding:10px 0;color:#64748b;font-size:14px;">Restaurante</td>
-        <td style="padding:10px 0;text-align:right;color:#0f172a;font-size:14px;font-weight:700;">${businessName}</td>
-      </tr>`
-    : "";
+    <div style="padding:32px">
+      <p style="font-size:16px;color:#2b1808;margin:0 0 16px">Olá, <strong>${params.nome}</strong>!</p>
 
-  return `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bem-vindo ao RTPG App</title>
-  </head>
-  <body style="margin:0;padding:0;background:#f4f1eb;font-family:Arial,Helvetica,sans-serif;color:#1c1917;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1eb;padding:32px 12px;">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #e7e5e4;">
-            <tr>
-              <td style="background:#111827;padding:32px 36px;text-align:left;">
-                <p style="margin:0;color:#f59e0b;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;">${fromName}</p>
-                <h1 style="margin:12px 0 0;color:#ffffff;font-size:30px;line-height:38px;">Ola, ${name}!</h1>
-                <p style="margin:14px 0 0;color:#d1d5db;font-size:16px;line-height:24px;">Seu acesso ao RTPG App foi criado com sucesso.</p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:34px 36px 12px;">
-                <p style="margin:0;color:#44403c;font-size:16px;line-height:26px;">
-                  Bem-vindo ao sistema de gestao para restaurantes. Voce ja pode acessar o painel para configurar cardapio, mesas, pedidos, estoque e operacao.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:12px 36px;">
-                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:18px 22px;">
-                  ${businessRow}
-                  <tr>
-                    <td style="padding:10px 0;color:#64748b;font-size:14px;">Email de contato</td>
-                    <td style="padding:10px 0;text-align:right;color:#0f172a;font-size:14px;font-weight:700;">${toEmail}</td>
-                  </tr>
-                  <tr>
-                    <td style="padding:10px 0;color:#64748b;font-size:14px;">Login de acesso</td>
-                    <td style="padding:10px 0;text-align:right;color:#0f172a;font-size:14px;font-weight:700;">${login}</td>
-                  </tr>
-                  ${passwordRow}
-                </table>
-              </td>
-            </tr>
-            <tr>
-              <td align="center" style="padding:24px 36px 34px;">
-                <table role="presentation" cellpadding="0" cellspacing="0">
-                  <tr>
-                    <td bgcolor="#f59e0b" style="border-radius:999px;">
-                      <a href="${appUrl}" style="display:inline-block;padding:14px 26px;color:#111827;text-decoration:none;font-size:15px;font-weight:700;">Acessar o sistema</a>
-                    </td>
-                  </tr>
-                </table>
-                <p style="margin:20px 0 0;color:#78716c;font-size:13px;line-height:20px;">
-                  Se voce nao solicitou este acesso, ignore este email ou entre em contato com o suporte do RTPG App.
-                </p>
-              </td>
-            </tr>
-            <tr>
-              <td style="background:#f8fafc;padding:20px 36px;text-align:center;border-top:1px solid #e7e5e4;">
-                <p style="margin:0;color:#78716c;font-size:12px;line-height:18px;">RTPG App - este e um email automatico, por favor nao responda.</p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+      <p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 20px">
+        Recebemos sua solicitação de acesso para o <strong>${params.restaurante}</strong>.
+        Nossa equipe vai entrar em contato em breve pelo WhatsApp para configurar o seu acesso e apresentar o sistema.
+      </p>
+
+      <div style="background:#f9f5ef;border-radius:14px;padding:20px;margin:0 0 24px">
+        <p style="font-size:13px;color:#7a4f18;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;margin:0 0 10px">O que você vai ter acesso</p>
+        <ul style="margin:0;padding:0 0 0 18px;color:#555;font-size:14px;line-height:1.8">
+          <li>Mesas e comandas digitais com fechamento via Pix</li>
+          <li>Cardápio, estoque e ficha técnica</li>
+          <li>DRE em tempo real por produto e geral</li>
+          <li>Financeiro integrado à operação</li>
+        </ul>
+      </div>
+
+      <p style="font-size:14px;color:#888;margin:0">
+        Qualquer dúvida, responda este e-mail ou nos chame no WhatsApp.<br>
+        Até breve!
+      </p>
+
+      <p style="font-size:14px;color:#2b1808;font-weight:700;margin:16px 0 0">— Equipe RTPG Gestão</p>
+    </div>
+
+    <div style="background:#f5f0e8;padding:16px 32px;text-align:center">
+      <p style="font-size:12px;color:#999;margin:0">
+        Você recebeu este e-mail porque solicitou acesso ao RTPG Gestão.<br>
+        Se não foi você, ignore esta mensagem.
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  await sendEmail({
+    to: params.to,
+    subject: `Solicitação recebida — RTPG Gestão`,
+    html
+  });
 }
 
-function buildWelcomeText(input: WelcomeEmailInput) {
-  const lines = [
-    `Ola, ${input.name || "cliente"}!`,
-    "",
-    "Seu acesso ao RTPG App foi criado com sucesso.",
-    input.businessName ? `Restaurante: ${input.businessName}` : "",
-    `Email de contato: ${input.email}`,
-    `Login de acesso: ${input.login || input.email}`,
-    input.password ? `Senha temporaria: ${input.password}` : "",
-    "",
-    `Acesse: ${appEnv.appBaseUrl}`,
-    "",
-    "RTPG App - email automatico."
-  ];
+export async function sendAccessCredentialsEmail(params: {
+  to: string;
+  nome: string;
+  restaurante: string;
+  login: string;
+  senha: string;
+  planName: string;
+}): Promise<void> {
+  const html = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f5f0e8;font-family:Arial,sans-serif">
+  <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,0.10)">
 
-  return lines.filter(Boolean).join("\n");
+    <div style="background:linear-gradient(135deg,#1c1007,#7a4f18);padding:36px 32px;text-align:center">
+      <p style="color:#e8c97a;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;margin:0 0 8px">RTPG Gestão</p>
+      <h1 style="color:#ffffff;font-size:26px;margin:0;font-weight:700">Seu acesso está pronto!</h1>
+    </div>
+
+    <div style="padding:32px">
+      <p style="font-size:16px;color:#2b1808;margin:0 0 16px">Olá, <strong>${params.nome}</strong>!</p>
+
+      <p style="font-size:15px;color:#555;line-height:1.6;margin:0 0 24px">
+        O acesso do <strong>${params.restaurante}</strong> foi configurado.
+        Use os dados abaixo para entrar no sistema.
+      </p>
+
+      <div style="background:#1c1007;border-radius:14px;padding:24px;margin:0 0 24px">
+        <p style="color:#e8c97a;font-size:11px;letter-spacing:0.3em;text-transform:uppercase;margin:0 0 16px">Seus dados de acesso</p>
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="color:#aaa;font-size:13px;padding:4px 0;width:80px">Plano</td>
+            <td style="color:#ffffff;font-size:14px;font-weight:700">${params.planName}</td>
+          </tr>
+          <tr>
+            <td style="color:#aaa;font-size:13px;padding:4px 0">Login</td>
+            <td style="color:#ffffff;font-size:16px;font-weight:700;font-family:monospace">${params.login}</td>
+          </tr>
+          <tr>
+            <td style="color:#aaa;font-size:13px;padding:4px 0">Senha</td>
+            <td style="color:#ffffff;font-size:16px;font-weight:700;font-family:monospace">${params.senha}</td>
+          </tr>
+        </table>
+      </div>
+
+      <p style="font-size:14px;color:#555;margin:0 0 16px">
+        Recomendamos que você <strong>troque a senha</strong> no primeiro acesso em
+        Configurações → Segurança.
+      </p>
+
+      <p style="font-size:14px;color:#888;margin:0">Qualquer dúvida, responda este e-mail ou nos chame no WhatsApp.</p>
+      <p style="font-size:14px;color:#2b1808;font-weight:700;margin:16px 0 0">— Equipe RTPG Gestão</p>
+    </div>
+
+    <div style="background:#f5f0e8;padding:16px 32px;text-align:center">
+      <p style="font-size:12px;color:#999;margin:0">RTPG Gestão — sistema para bares e restaurantes.</p>
+    </div>
+  </div>
+</body>
+</html>
+  `.trim();
+
+  await sendEmail({
+    to: params.to,
+    subject: `Seu acesso ao RTPG Gestão está pronto — ${params.restaurante}`,
+    html
+  });
 }
-
-export const emailService = {
-  isConfigured: isSesConfigured,
-
-  async sendWelcomeEmail(input: WelcomeEmailInput) {
-    const transporter = getTransporter();
-    const fromName = appEnv.ses.fromName || "RTPG App";
-
-    await transporter.sendMail({
-      from: `"${fromName.replace(/"/g, "'")}" <${appEnv.ses.fromEmail}>`,
-      to: input.email,
-      subject: "Bem-vindo ao RTPG App",
-      html: buildWelcomeHtml(input),
-      text: buildWelcomeText(input)
-    });
-  }
-};

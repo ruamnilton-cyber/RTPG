@@ -14,24 +14,6 @@ async function main() {
     }
   });
 
-  // Usuário admin
-  const adminEmail = "admin@rtpg.local";
-  const adminExists = await prisma.user.findUnique({ where: { email: adminEmail } });
-  if (!adminExists) {
-    const admin = await prisma.user.create({
-      data: {
-        name: "Administrador RTPG",
-        email: adminEmail,
-        role: "ADMIN",
-        passwordHash: await hashPassword("admin123")
-      }
-    });
-    await prisma.userBar.upsert({
-      where: { userId_barId: { userId: admin.id, barId: bar.id } },
-      update: {},
-      create: { userId: admin.id, barId: bar.id }
-    });
-  }
 
   // Categorias de produtos
   const categories = ["Lanches", "Bebidas", "Porções"];

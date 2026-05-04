@@ -73,6 +73,19 @@ export function SettingsPage() {
   const asaasKeyRef = useRef<HTMLInputElement>(null);
   const asaasCpfRef = useRef<HTMLInputElement>(null);
 
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpSecure, setSmtpSecure] = useState(false);
+  const [smtpFromName, setSmtpFromName] = useState("RTPG Gestão");
+  const [smtpPassHint, setSmtpPassHint] = useState<string | null>(null);
+  const smtpPassRef = useRef<HTMLInputElement>(null);
+  const [smtpSaving, setSmtpSaving] = useState(false);
+  const [smtpMessage, setSmtpMessage] = useState("");
+  const [smtpTestEmail, setSmtpTestEmail] = useState("");
+  const [smtpTesting, setSmtpTesting] = useState(false);
+
   useEffect(() => {
     if (!token) return;
     apiRequest<{
@@ -85,6 +98,21 @@ export function SettingsPage() {
         setAsaasConfigured(r.asaas.configured);
         setAsaasHint(r.asaas.apiKeyHint);
         setAsaasSandbox(r.asaas.sandbox);
+      })
+      .catch(() => {});
+
+    apiRequest<{
+      configured: boolean; host: string; port: number; secure: boolean;
+      user: string; fromName: string; passHint: string | null;
+    }>("/email/config", { token })
+      .then((r) => {
+        setSmtpConfigured(r.configured);
+        setSmtpHost(r.host || "smtp.gmail.com");
+        setSmtpPort(r.port || 587);
+        setSmtpSecure(r.secure);
+        setSmtpUser(r.user || "");
+        setSmtpFromName(r.fromName || "RTPG Gestão");
+        setSmtpPassHint(r.passHint);
       })
       .catch(() => {});
   }, [token]);
@@ -393,6 +421,140 @@ export function SettingsPage() {
               ) : null}
             </div>
           </form>
+          <div className="card space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>E-mail</p>
+              <h3 className="mt-2 text-2xl font-bold">Configuração SMTP</h3>
+              <p className="mt-2 text-sm text-muted">
+                Configure o servidor de e-mail para enviar boas-vindas aos leads e credenciais de acesso.
+                No Gmail, use uma <strong>Senha de App</strong> (não a senha normal).
+              </p>
+            </div>
+
+            {smtpConfigured ? (
+              <div className="rounded-2xl bg-emerald-50 p-4 text-sm text-emerald-800">
+                ✓ E-mail configurado — conta <strong>{smtpUser}</strong>
+              </div>
+            ) : (
+              <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800">
+                Não configurado. Sem isso, os leads não recebem e-mail de boas-vindas.
+              </div>
+            )}
+
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="space-y-1 md:col-span-2">
+                <span className="label">Nome do remetente</span>
+                <input className="input" value={smtpFromName} onChange={(e) => setSmtpFromName(e.target.value)} placeholder="RTPG Gestão" />
+              </label>
+              <label className="space-y-1 md:col-span-2">
+                <span className="label">E-mail (usuário SMTP)</span>
+                <input className="input" type="email" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} placeholder="seu@gmail.com" />
+              </label>
+              <label className="space-y-1 md:col-span-2">
+                <span className="label">Senha de App {smtpPassHint ? <span className="text-muted">— atual: {smtpPassHint}</span> : null}</span>
+                <input ref={smtpPassRef} className="input font-mono text-sm" type="password" placeholder="Nova senha (deixe em branco para manter)" autoComplete="off" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">Servidor SMTP (host)</span>
+                <input className="input" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.gmail.com" />
+              </label>
+              <label className="space-y-1">
+                <span className="label">Porta</span>
+                <input className="input" type="number" value={smtpPort} onChange={(e) => setSmtpPort(Number(e.target.value))} />
+              </label>
+              <label className="flex items-center gap-3 rounded-2xl border px-4 py-3 cursor-pointer md:col-span-2" style={{ borderColor: "var(--color-border)" }}>
+                <input type="checkbox" checked={smtpSecure} onChange={(e: ChangeEvent<HTMLInputElement>) => setSmtpSecure(e.target.checked)} />
+                <div>
+                  <strong className="block text-sm">SSL/TLS (porta 465)</strong>
+                  <p className="text-xs text-muted">Ative apenas se usar porta 465. Para 587 (Gmail padrão), deixe desmarcado.</p>
+                </div>
+              </label>
+            </div>
+
+            {smtpMessage ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{smtpMessage}</p> : null}
+
+            <div className="flex flex-wrap gap-3">
+              <button
+                className="btn-primary"
+                type="button"
+                disabled={smtpSaving}
+                onClick={async () => {
+                  const pass = smtpPassRef.current?.value?.trim();
+                  if (!smtpUser || !smtpHost) return;
+                  if (!smtpConfigured && !pass) { setSmtpMessage("Informe a senha para configurar pela primeira vez."); return; }
+                  setSmtpSaving(true);
+                  setSmtpMessage("");
+                  try {
+                    const body: Record<string, unknown> = { host: smtpHost, port: smtpPort, secure: smtpSecure, user: smtpUser, fromName: smtpFromName };
+                    if (pass) body.pass = pass;
+                    else {
+                      const cur = await apiRequest<{ pass?: string }>("/email/config", { token });
+                      body.pass = (cur as unknown as { passHint?: string }).passHint ?? "";
+                    }
+                    await apiRequest("/email/config", { method: "PUT", token, body });
+                    setSmtpConfigured(true);
+                    setSmtpPassHint(pass ? `...${pass.slice(-4)}` : smtpPassHint);
+                    if (smtpPassRef.current) smtpPassRef.current.value = "";
+                    setSmtpMessage("Configuração salva.");
+                  } catch (err) {
+                    setSmtpMessage(err instanceof Error ? err.message : "Erro ao salvar.");
+                  } finally {
+                    setSmtpSaving(false);
+                  }
+                }}
+              >
+                {smtpSaving ? "Salvando..." : "Salvar configuração"}
+              </button>
+              {smtpConfigured ? (
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  onClick={async () => {
+                    await apiRequest("/email/config", { method: "DELETE", token });
+                    setSmtpConfigured(false);
+                    setSmtpPassHint(null);
+                    setSmtpMessage("Configuração removida.");
+                  }}
+                >
+                  Remover
+                </button>
+              ) : null}
+            </div>
+
+            {smtpConfigured ? (
+              <div className="rounded-3xl p-4 surface-soft space-y-3">
+                <p className="text-sm font-semibold">Enviar e-mail de teste</p>
+                <div className="flex gap-2">
+                  <input
+                    className="input flex-1"
+                    type="email"
+                    placeholder="destinatario@email.com"
+                    value={smtpTestEmail}
+                    onChange={(e) => setSmtpTestEmail(e.target.value)}
+                  />
+                  <button
+                    className="btn-secondary shrink-0"
+                    type="button"
+                    disabled={smtpTesting || !smtpTestEmail}
+                    onClick={async () => {
+                      setSmtpTesting(true);
+                      setSmtpMessage("");
+                      try {
+                        await apiRequest("/email/test", { method: "POST", token, body: { to: smtpTestEmail } });
+                        setSmtpMessage(`Teste enviado para ${smtpTestEmail}.`);
+                      } catch (err) {
+                        setSmtpMessage(err instanceof Error ? err.message : "Erro ao enviar teste.");
+                      } finally {
+                        setSmtpTesting(false);
+                      }
+                    }}
+                  >
+                    {smtpTesting ? "Enviando..." : "Testar"}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

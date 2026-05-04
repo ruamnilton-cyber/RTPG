@@ -8,7 +8,7 @@ import { logAction } from "../services/logging";
 const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
-  const ids = await getEffectiveBarIds(req.user!.userId, req.user!.role, req.user!.email);
+  const ids = await getEffectiveBarIds(req.user!.userId, req.user!.role);
   const bars = await prisma.bar.findMany({
     where: { id: { in: ids }, active: true },
     orderBy: { name: "asc" }

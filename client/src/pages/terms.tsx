@@ -1,128 +1,161 @@
 import { Link } from "react-router-dom";
 
+const UPDATED_AT = "22 de abril de 2026";
+const PROVIDER = "RTPG Gestão";
+const CONTACT_EMAIL = "contato@rtpg.com.br";
+const CONTACT_WHATSAPP = "(XX) 9XXXX-XXXX";
+
 export function TermsPage() {
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-background)" }}>
-      <header className="border-b px-5 py-4" style={{ borderColor: "var(--color-border)", background: "var(--color-surface)" }}>
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <span className="text-sm font-bold" style={{ color: "var(--color-foreground)" }}>RTPG</span>
-          <Link to="/login" className="text-sm text-muted hover:underline">Voltar</Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-stone-100 px-4 py-10">
+      <div className="mx-auto max-w-3xl space-y-8">
 
-      <main className="mx-auto max-w-3xl px-5 py-12 lg:px-8">
-        <h1 className="text-3xl font-bold" style={{ color: "var(--color-foreground)" }}>Termos de Uso</h1>
-        <p className="mt-1 text-sm text-muted">Ultima atualizacao: abril de 2026</p>
-
-        <div className="mt-10 space-y-8 text-sm leading-7" style={{ color: "var(--color-foreground)" }}>
-
-          <section>
-            <h2 className="text-base font-bold">1. Aceitacao</h2>
-            <p className="mt-2 text-muted">
-              Ao usar o RTPG, voce concorda com estes Termos e com nossa Politica de Privacidade.
-              O uso continuado apos alteracoes constitui aceitacao das novas condicoes.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">2. O servico</h2>
-            <p className="mt-2 text-muted">
-              O RTPG e uma plataforma SaaS de gestao para restaurantes — PDV, estoque, financeiro,
-              relatorios e equipe — fornecida via internet em regime de assinatura mensal.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">3. Sua conta</h2>
-            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
-              <li>Voce e responsavel pela seguranca das suas credenciais;</li>
-              <li>E proibido compartilhar acesso com terceiros nao autorizados;</li>
-              <li>Todas as acoes realizadas na conta sao de sua responsabilidade;</li>
-              <li>Informe-nos imediatamente em caso de acesso nao autorizado.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">4. Planos e pagamentos</h2>
-            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
-              <li>Pagamentos via PIX processados pelo gateway Asaas;</li>
-              <li>Acesso pode ser suspenso em caso de inadimplencia apos o vencimento;</li>
-              <li>O periodo de trial nao requer pagamento antecipado;</li>
-              <li>Nao ha reembolso por periodo nao utilizado dentro de um ciclo ja pago;</li>
-              <li>Reajustes comunicados com pelo menos 30 dias de antecedencia.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">5. Uso aceitavel</h2>
-            <p className="mt-2 text-muted">E proibido:</p>
-            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
-              <li>Usar a plataforma para fins ilegais ou que violem direitos de terceiros;</li>
-              <li>Tentar acessar dados de outros usuarios ou restaurantes;</li>
-              <li>Realizar engenharia reversa ou copiar o software;</li>
-              <li>Sobrecarregar intencionalmente a infraestrutura (DoS);</li>
-              <li>Revender acesso sem autorizacao expressa.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">6. Propriedade intelectual</h2>
-            <p className="mt-2 text-muted">
-              Codigo, design e funcionalidades do RTPG sao propriedade de seus desenvolvedores.
-              O usuario recebe apenas uma licenca limitada e intransferivel de uso.
-              Os dados inseridos pelo usuario (produtos, clientes, pedidos) pertencem a ele e podem ser exportados a qualquer momento.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">7. Disponibilidade</h2>
-            <p className="mt-2 text-muted">
-              Mantemos a plataforma disponivel com o melhor esforco razoavel. Manutencoes programadas
-              sao comunicadas com antecedencia. Eventos fora do nosso controle nao geram direito a compensacao.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">8. Limitacao de responsabilidade</h2>
-            <p className="mt-2 text-muted">
-              Nao nos responsabilizamos por danos indiretos ou lucros cessantes decorrentes do uso da plataforma.
-              Nossa responsabilidade total nao excede o valor pago nos ultimos 3 meses anteriores ao evento.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">9. Cancelamento</h2>
-            <ul className="mt-2 list-disc pl-5 space-y-1 text-muted">
-              <li>Voce pode cancelar sua conta nas configuracoes a qualquer momento;</li>
-              <li>Contas que violem estes Termos podem ser suspensas sem aviso previo;</li>
-              <li>Apos cancelamento, voce tem 30 dias para exportar seus dados.</li>
-            </ul>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">10. Lei aplicavel</h2>
-            <p className="mt-2 text-muted">
-              Estes Termos sao regidos pelas leis do Brasil. Qualquer controversia sera submetida
-              ao foro da comarca da sede do prestador do servico.
-            </p>
-          </section>
-
-          <section>
-            <h2 className="text-base font-bold">11. Contato</h2>
-            <p className="mt-2 text-muted">
-              Duvidas sobre estes Termos: suporte disponivel dentro da plataforma ou e-mail nas configuracoes da conta.
-            </p>
-          </section>
+        <div className="rounded-[2rem] bg-white p-8 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-700">
+            {PROVIDER}
+          </p>
+          <h1 className="mt-3 text-3xl font-bold">Termos de Uso e Contrato de Serviço</h1>
+          <p className="mt-2 text-sm text-gray-500">Última atualização: {UPDATED_AT}</p>
         </div>
 
-        <div className="mt-12 border-t pt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs text-muted" style={{ borderColor: "var(--color-border)" }}>
-          <span>RTPG &copy; {new Date().getFullYear()}</span>
-          <div className="flex gap-4">
-            <Link to="/privacidade" className="hover:underline">Privacidade</Link>
-            <Link to="/termos" className="hover:underline">Termos de uso</Link>
-          </div>
+        <Section title="1. Das Partes">
+          <p>
+            O presente contrato é firmado entre <strong>{PROVIDER}</strong> ("Fornecedor"), responsável pelo
+            desenvolvimento e disponibilização do sistema de gestão para bares e restaurantes, e a pessoa
+            física ou jurídica que efetua o cadastro na plataforma ("Cliente").
+          </p>
+          <p className="mt-3">
+            Ao solicitar acesso, o Cliente declara ter lido, compreendido e aceito integralmente os termos
+            aqui descritos.
+          </p>
+        </Section>
+
+        <Section title="2. Objeto do Contrato">
+          <p>
+            O Fornecedor concede ao Cliente acesso ao sistema RTPG Gestão — plataforma SaaS de gestão
+            para bares e restaurantes — incluindo módulos de mesas, comandas, cardápio, estoque,
+            financeiro e relatórios, conforme o plano contratado.
+          </p>
+          <p className="mt-3">
+            O acesso é não exclusivo, intransferível e restrito ao estabelecimento cadastrado pelo
+            Cliente no ato da contratação.
+          </p>
+        </Section>
+
+        <Section title="3. Planos e Mensalidade">
+          <p>
+            O sistema é disponibilizado em planos mensais com valores, funcionalidades e limites de
+            usuários definidos na proposta apresentada pelo Fornecedor. O Cliente concorda com o valor
+            mensal estipulado no momento da contratação.
+          </p>
+          <ul className="mt-3 list-disc pl-5 space-y-1 text-sm">
+            <li>O vencimento é combinado entre as partes no ato do cadastro.</li>
+            <li>O pagamento é realizado via Pix ou boleto, conforme orientação do Fornecedor.</li>
+            <li>A falta de pagamento por mais de 5 dias corridos após o vencimento pode resultar em suspensão do acesso.</li>
+            <li>O desbloqueio ocorre em até 24 horas após a confirmação do pagamento.</li>
+          </ul>
+        </Section>
+
+        <Section title="4. Prazo e Rescisão">
+          <p>
+            O contrato é de prazo indeterminado, podendo ser rescindido por qualquer das partes com
+            aviso prévio de <strong>15 (quinze) dias corridos</strong>.
+          </p>
+          <p className="mt-3">
+            O Fornecedor pode rescindir imediatamente em caso de: uso indevido da plataforma, violação
+            destes termos, inadimplência superior a 30 dias ou qualquer ato que cause dano ao sistema
+            ou a outros usuários.
+          </p>
+          <p className="mt-3">
+            Não há cobrança de multa rescisória quando respeitado o prazo de aviso prévio.
+          </p>
+        </Section>
+
+        <Section title="5. Responsabilidades do Cliente">
+          <ul className="list-disc pl-5 space-y-1 text-sm">
+            <li>Manter os dados de acesso (login e senha) em sigilo.</li>
+            <li>Não compartilhar o acesso com outros estabelecimentos não contratantes.</li>
+            <li>Manter seus dados cadastrais atualizados.</li>
+            <li>Usar o sistema exclusivamente para fins lícitos relacionados à gestão do estabelecimento.</li>
+            <li>Realizar backups adicionais dos dados críticos quando necessário.</li>
+          </ul>
+        </Section>
+
+        <Section title="6. Responsabilidades do Fornecedor">
+          <ul className="list-disc pl-5 space-y-1 text-sm">
+            <li>Manter o sistema disponível com esforço razoável de uptime (meta: 99%).</li>
+            <li>Notificar o Cliente com antecedência em caso de manutenções programadas.</li>
+            <li>Não compartilhar dados do Cliente com terceiros sem autorização, salvo obrigação legal.</li>
+            <li>Fornecer suporte técnico dentro do horário combinado.</li>
+          </ul>
+          <p className="mt-3">
+            O Fornecedor não se responsabiliza por perdas decorrentes de uso incorreto do sistema,
+            falhas de internet no estabelecimento do Cliente ou integração com serviços de terceiros
+            (Mercado Pago, Asaas, WhatsApp).
+          </p>
+        </Section>
+
+        <Section title="7. Dados e Privacidade">
+          <p>
+            Os dados inseridos pelo Cliente no sistema são de propriedade do Cliente. O Fornecedor
+            processa esses dados exclusivamente para prestação do serviço contratado, em conformidade
+            com a Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018).
+          </p>
+          <p className="mt-3">
+            Em caso de rescisão, o Cliente pode solicitar exportação dos seus dados em até 30 dias
+            após o encerramento do acesso.
+          </p>
+        </Section>
+
+        <Section title="8. Atualizações do Sistema e dos Termos">
+          <p>
+            O Fornecedor pode atualizar o sistema e estes termos a qualquer momento. Alterações
+            relevantes serão comunicadas com antecedência mínima de 15 dias pelo canal de contato
+            cadastrado.
+          </p>
+          <p className="mt-3">
+            O uso continuado do sistema após a notificação implica aceite das novas condições.
+          </p>
+        </Section>
+
+        <Section title="9. Foro e Legislação">
+          <p>
+            Este contrato é regido pelas leis brasileiras. Eventuais conflitos serão resolvidos de
+            preferência por negociação direta e, caso necessário, submetidos ao foro da comarca do
+            domicílio do Fornecedor.
+          </p>
+        </Section>
+
+        <Section title="10. Contato">
+          <p>Para dúvidas, suporte ou notificações contratuais:</p>
+          <ul className="mt-2 list-disc pl-5 space-y-1 text-sm">
+            <li>E-mail: <strong>{CONTACT_EMAIL}</strong></li>
+            <li>WhatsApp: <strong>{CONTACT_WHATSAPP}</strong></li>
+          </ul>
+        </Section>
+
+        <div className="rounded-[2rem] bg-white p-8 shadow-sm text-center">
+          <p className="text-sm text-gray-500">
+            Ao solicitar acesso ao sistema, o Cliente confirma que leu e concorda com estes termos.
+          </p>
+          <Link
+            to="/login"
+            className="mt-4 inline-block rounded-2xl bg-amber-700 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
+          >
+            Voltar ao login
+          </Link>
         </div>
-      </main>
+
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-[2rem] bg-white p-8 shadow-sm space-y-2">
+      <h2 className="text-lg font-bold">{title}</h2>
+      <div className="text-sm leading-relaxed text-gray-700">{children}</div>
     </div>
   );
 }

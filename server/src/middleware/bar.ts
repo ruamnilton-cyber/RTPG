@@ -46,21 +46,8 @@ async function ensureDefaultBar(userId: string): Promise<string> {
   }
 }
 
-export async function getEffectiveBarIds(userId: string, role: string, email?: string): Promise<string[]> {
+export async function getEffectiveBarIds(userId: string, role: string): Promise<string[]> {
   try {
-    const isPlatformAdmin = role === "ADMIN" && email === "admin@rtpg.local";
-    if (isPlatformAdmin) {
-      const rows = await prisma.bar.findMany({
-        where: { active: true },
-        select: { id: true },
-        orderBy: { name: "asc" },
-      });
-      if (rows.length) return rows.map((row) => row.id);
-      // Admin mas sem bar? Cria o padrão
-      const barId = await ensureDefaultBar(userId);
-      return [barId];
-    }
-
     const links = await prisma.userBar.findMany({
       where: { userId },
       select: { barId: true },
@@ -85,7 +72,7 @@ export async function requireBar(req: Request, res: Response, next: NextFunction
   }
 
   try {
-    const allowed = await getEffectiveBarIds(req.user.userId, req.user.role, req.user.email);
+    const allowed = await getEffectiveBarIds(req.user.userId, req.user.role);
     const headerBar = typeof req.headers["x-bar-id"] === "string" ? req.headers["x-bar-id"].trim() : "";
     const chosen = headerBar && allowed.includes(headerBar) ? headerBar : allowed[0];
     req.barId = chosen;

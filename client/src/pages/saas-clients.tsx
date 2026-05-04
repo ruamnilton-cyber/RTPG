@@ -5,6 +5,61 @@ import { apiRequest } from "../lib/api";
 import { formatMoney } from "../lib/format";
 import { useAuth } from "../state/auth";
 
+type PlanDef = {
+  name: string;
+  price: string;
+  color: string;
+  features: string[];
+  highlight?: boolean;
+};
+
+const PLANS: PlanDef[] = [
+  {
+    name: "Plano Base",
+    price: "R$ 197/mês",
+    color: "#6b7280",
+    features: [
+      "Mesas e comandas digitais",
+      "Cardápio com categorias",
+      "Fechamento de comanda + Pix",
+      "Caixa e sangria",
+      "DRE simplificado",
+      "1 usuário operador"
+    ]
+  },
+  {
+    name: "Plano Pro",
+    price: "R$ 297/mês",
+    color: "#d97706",
+    highlight: true,
+    features: [
+      "Tudo do Plano Base",
+      "Controle de estoque e insumos",
+      "Ficha técnica e CMV real",
+      "DRE completo por produto",
+      "Relatórios avançados",
+      "Clientes e CRM",
+      "QR Code de cardápio",
+      "KDS / Tela de cozinha",
+      "Até 3 usuários"
+    ]
+  },
+  {
+    name: "Plano Premium",
+    price: "R$ 497/mês",
+    color: "#7c3aed",
+    features: [
+      "Tudo do Plano Pro",
+      "WhatsApp e IA integrados",
+      "Reservas de mesa",
+      "Automação de atendimento",
+      "Multi-unidade preparado",
+      "Usuários ilimitados",
+      "Suporte prioritário"
+    ]
+  }
+];
+
 type SaasPayment = {
   id: string;
   amount: number;
@@ -47,79 +102,61 @@ type SaasOverview = {
   };
 };
 
-const statusLabel: Record<SaasClient["status"], string> = {
-  ATIVO: "Ativo", TRIAL: "Trial", ATRASADO: "Atrasado", SUSPENSO: "Suspenso", CANCELADO: "Cancelado"
-};
-const accessLabel: Record<SaasClient["accessStatus"], string> = {
-  LIBERADO: "Liberado", BLOQUEIO_AVISO: "Aviso", BLOQUEADO: "Bloqueado"
-};
-const statusBg: Record<SaasClient["status"], { bg: string; color: string }> = {
-  ATIVO:     { bg: "color-mix(in srgb, #16a34a 25%, #1b1b1f)", color: "#4ade80" },
-  TRIAL:     { bg: "color-mix(in srgb, #2563eb 25%, #1b1b1f)", color: "#60a5fa" },
-  ATRASADO:  { bg: "color-mix(in srgb, #f59e0b 25%, #1b1b1f)", color: "#fcd34d" },
-  SUSPENSO:  { bg: "color-mix(in srgb, #dc2626 25%, #1b1b1f)", color: "#f87171" },
-  CANCELADO: { bg: "color-mix(in srgb, #374151 35%, #1b1b1f)", color: "#9ca3af" },
-};
-const accessBg: Record<SaasClient["accessStatus"], { bg: string; color: string }> = {
-  LIBERADO:       { bg: "color-mix(in srgb, #16a34a 25%, #1b1b1f)", color: "#4ade80" },
-  BLOQUEIO_AVISO: { bg: "color-mix(in srgb, #f59e0b 25%, #1b1b1f)", color: "#fcd34d" },
-  BLOQUEADO:      { bg: "color-mix(in srgb, #dc2626 25%, #1b1b1f)", color: "#f87171" },
-};
-
 function totalClientRevenue(client: SaasClient) {
-  return client.payments.reduce((sum, p) => sum + p.amount, 0);
+  return client.payments.reduce((sum, payment) => sum + payment.amount, 0);
 }
 
-function daysOverdue(client: SaasClient): number | null {
-  if (client.status !== "ATRASADO" && client.status !== "SUSPENSO") return null;
-  if (!client.nextDueDate) return null;
-  const due = new Date(client.nextDueDate);
-  const today = new Date();
-  return Math.max(0, Math.floor((today.getTime() - due.getTime()) / 86_400_000));
-}
+function CredentialsEmailButton({ client, token }: { client: SaasClient; token: string | null }) {
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState("");
+  const [senha, setSenha] = useState(client.temporaryPassword || "12345");
 
-function OverdueBadge({ days }: { days: number }) {
-  const color = days > 15 ? "#ef4444" : days > 7 ? "#f97316" : "#eab308";
+  if (!client.email) {
+    return (
+      <div className="rounded-3xl p-4 surface-soft text-sm text-muted">
+        Cadastre o e-mail do cliente para poder enviar as credenciais por e-mail.
+      </div>
+    );
+  }
+
   return (
-    <span
-      className="rounded-full px-2 py-0.5 text-xs font-bold"
-      style={{ background: `${color}22`, color }}
-    >
-      {days}d atraso
-    </span>
+    <div className="rounded-3xl p-4 surface-soft space-y-3">
+      <div>
+        <h4 className="text-lg font-bold">Enviar credenciais por e-mail</h4>
+        <p className="text-sm text-muted">
+          Envia login e senha para <strong>{client.email}</strong> com um e-mail bonito de boas-vindas.
+        </p>
+      </div>
+      <label className="space-y-1">
+        <span className="label">Senha a enviar</span>
+        <input className="input font-mono" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Senha inicial" />
+      </label>
+      {message ? <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{message}</p> : null}
+      <button
+        type="button"
+        className="btn-primary w-full"
+        disabled={sending}
+        onClick={async () => {
+          setSending(true);
+          setMessage("");
+          try {
+            await apiRequest(`/saas-clients/${client.id}/send-credentials`, {
+              method: "POST",
+              token,
+              body: { senha }
+            });
+            setMessage(`E-mail enviado para ${client.email}.`);
+          } catch (err) {
+            setMessage(err instanceof Error ? err.message : "Erro ao enviar e-mail.");
+          } finally {
+            setSending(false);
+          }
+        }}
+      >
+        {sending ? "Enviando..." : "Enviar credenciais por e-mail"}
+      </button>
+    </div>
   );
-}
-
-function exportCSV(clients: SaasClient[]) {
-  const headers = [
-    "Restaurante", "Responsavel", "Email", "Telefone",
-    "Plano", "Mensalidade (R$)", "Faturamento Total (R$)",
-    "Status", "Acesso", "Proximo Vencimento", "Ultimo Pagamento", "Cadastro"
-  ];
-  const rows = clients.map(c => [
-    c.businessName,
-    c.contactName,
-    c.email,
-    c.phone,
-    c.planName,
-    c.monthlyFee.toFixed(2),
-    totalClientRevenue(c).toFixed(2),
-    statusLabel[c.status],
-    accessLabel[c.accessStatus],
-    c.nextDueDate || "",
-    c.lastPaymentDate || "",
-    c.createdAt ? c.createdAt.slice(0, 10) : ""
-  ]);
-  const csv = [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `clientes-rtpg-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
 }
 
 export function SaasClientsPage() {
@@ -128,7 +165,9 @@ export function SaasClientsPage() {
   const [overview, setOverview] = useState<SaasOverview | null>(null);
   const [selectedClient, setSelectedClient] = useState<SaasClient | null>(null);
   const [search, setSearch] = useState("");
-  const [tableSearch, setTableSearch] = useState("");
+  const [chargeResult, setChargeResult] = useState<{ pixCode: string; pixQrCodeBase64: string; dueDate: string } | null>(null);
+  const [chargeLoading, setChargeLoading] = useState(false);
+  const [chargeError, setChargeError] = useState("");
 
   async function load(nextSearch = "") {
     const [list, summary] = await Promise.all([
@@ -142,25 +181,14 @@ export function SaasClientsPage() {
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [token]);
+  useEffect(() => {
+    load();
+  }, [token]);
 
   const topRevenue = useMemo(
     () => [...clients].sort((a, b) => totalClientRevenue(b) - totalClientRevenue(a)).slice(0, 5),
     [clients]
   );
-
-  const filteredTable = useMemo(() => {
-    if (!tableSearch) return clients;
-    const q = tableSearch.toLowerCase();
-    return clients.filter(c =>
-      c.businessName.toLowerCase().includes(q) ||
-      c.contactName.toLowerCase().includes(q) ||
-      c.email.toLowerCase().includes(q) ||
-      c.phone.includes(q) ||
-      c.planName.toLowerCase().includes(q)
-    );
-  }, [clients, tableSearch]);
 
   return (
     <div className="space-y-5">
@@ -187,102 +215,6 @@ export function SaasClientsPage() {
         </div>
       ) : null}
 
-      {/* Planilha geral */}
-      <div className="card space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>
-              Visao geral
-            </p>
-            <h3 className="mt-1 text-xl font-bold">Todos os clientes</h3>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <input
-              className="input w-56"
-              placeholder="Filtrar tabela..."
-              value={tableSearch}
-              onChange={e => setTableSearch(e.target.value)}
-            />
-            <button className="btn-primary" type="button" onClick={() => exportCSV(filteredTable)}>
-              Exportar CSV
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto rounded-xl">
-          <table className="table-base w-full min-w-[900px]">
-            <thead>
-              <tr>
-                <th>Restaurante</th>
-                <th>Responsavel</th>
-                <th>Contato</th>
-                <th>Plano</th>
-                <th className="text-right">Mensalidade</th>
-                <th className="text-right">Faturamento total</th>
-                <th>Status</th>
-                <th>Acesso</th>
-                <th>Vencimento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredTable.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="py-8 text-center text-muted">Nenhum cliente encontrado.</td>
-                </tr>
-              ) : filteredTable.map(c => (
-                <tr
-                  key={c.id}
-                  className="cursor-pointer transition hover:opacity-75"
-                  onClick={() => setSelectedClient(c)}
-                >
-                  <td><strong>{c.businessName || "â€”"}</strong></td>
-                  <td>{c.contactName || "â€”"}</td>
-                  <td>
-                    <span className="block text-sm">{c.email || "â€”"}</span>
-                    <span className="block text-xs text-muted">{c.phone || ""}</span>
-                  </td>
-                  <td className="text-sm">{c.planName}</td>
-                  <td className="text-right font-semibold">{formatMoney(c.monthlyFee)}</td>
-                  <td className="text-right font-semibold">{formatMoney(totalClientRevenue(c))}</td>
-                  <td>
-                    <div className="flex flex-col gap-1">
-                      <span className="rounded-full px-2 py-1 text-xs font-semibold"
-                        style={{ background: statusBg[c.status].bg, color: statusBg[c.status].color }}>
-                        {statusLabel[c.status]}
-                      </span>
-                      {(() => { const d = daysOverdue(c); return d !== null ? <OverdueBadge days={d} /> : null; })()}
-                    </div>
-                  </td>
-                  <td>
-                    <span className="rounded-full px-2 py-1 text-xs font-semibold"
-                      style={{ background: accessBg[c.accessStatus].bg, color: accessBg[c.accessStatus].color }}>
-                      {accessLabel[c.accessStatus]}
-                    </span>
-                  </td>
-                  <td className="text-sm">{c.nextDueDate?.slice(0, 10) || "â€”"}</td>
-                </tr>
-              ))}
-            </tbody>
-            {filteredTable.length > 0 && (
-              <tfoot>
-                <tr>
-                  <td colSpan={4} className="pt-3 font-semibold text-muted">
-                    Total â€” {filteredTable.length} cliente{filteredTable.length !== 1 ? "s" : ""}
-                  </td>
-                  <td className="pt-3 text-right font-semibold">
-                    {formatMoney(filteredTable.reduce((s, c) => s + c.monthlyFee, 0))}
-                  </td>
-                  <td className="pt-3 text-right font-semibold">
-                    {formatMoney(filteredTable.reduce((s, c) => s + totalClientRevenue(c), 0))}
-                  </td>
-                  <td colSpan={3} />
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </div>
-      </div>
-
       <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="space-y-5">
           <form
@@ -294,10 +226,6 @@ export function SaasClientsPage() {
                 method: "POST",
                 token,
                 body: {
-                  businessName: String(formData.get("businessName") ?? ""),
-                  contactName: String(formData.get("contactName") ?? ""),
-                  phone: String(formData.get("phone") ?? ""),
-                  email: String(formData.get("email") ?? ""),
                   accessLogin: String(formData.get("accessLogin")),
                   temporaryPassword: String(formData.get("temporaryPassword") ?? "12345"),
                   planName: String(formData.get("planName") ?? "Plano Base"),
@@ -307,6 +235,10 @@ export function SaasClientsPage() {
                   status: String(formData.get("status") ?? "TRIAL"),
                   accessStatus: String(formData.get("accessStatus") ?? "LIBERADO"),
                   notes: String(formData.get("notes") ?? ""),
+                  businessName: "",
+                  contactName: "",
+                  phone: "",
+                  email: "",
                   lastPaymentDate: "",
                   payments: []
                 }
@@ -322,22 +254,6 @@ export function SaasClientsPage() {
               <h3 className="mt-2 text-2xl font-bold">Novo restaurante</h3>
             </div>
             <div className="grid gap-3 md:grid-cols-2">
-              <label className="space-y-1 md:col-span-2">
-                <span className="label">Nome do restaurante</span>
-                <input className="input" name="businessName" placeholder="Ex: Restaurante do JoÃ£o" required />
-              </label>
-              <label className="space-y-1">
-                <span className="label">ResponsÃ¡vel</span>
-                <input className="input" name="contactName" placeholder="Nome do responsÃ¡vel" />
-              </label>
-              <label className="space-y-1">
-                <span className="label">Telefone</span>
-                <input className="input" name="phone" placeholder="(11) 99999-9999" />
-              </label>
-              <label className="space-y-1">
-                <span className="label">E-mail</span>
-                <input className="input" name="email" type="email" placeholder="contato@restaurante.com" />
-              </label>
               <label className="space-y-1">
                 <span className="label">Login do restaurante</span>
                 <input className="input" name="accessLogin" placeholder="Ex: cura1" required />
@@ -348,7 +264,11 @@ export function SaasClientsPage() {
               </label>
               <label className="space-y-1">
                 <span className="label">Plano</span>
-                <input className="input" name="planName" placeholder="Plano contratado" defaultValue="Plano Base" />
+                <select className="input" name="planName" defaultValue="Plano Base">
+                  {PLANS.map((p) => (
+                    <option key={p.name} value={p.name}>{p.name} — {p.price}</option>
+                  ))}
+                </select>
               </label>
               <label className="space-y-1">
                 <span className="label">Mensalidade</span>
@@ -382,11 +302,57 @@ export function SaasClientsPage() {
               </label>
               <label className="space-y-1 md:col-span-2">
                 <span className="label">Observacoes internas</span>
-                <textarea className="input min-h-24" name="notes" placeholder="Anotacoes de contrato, cobranca e combinados" />
+                <textarea
+                  className="input min-h-24"
+                  name="notes"
+                  placeholder="Anotacoes de contrato, cobranca e combinados"
+                />
               </label>
             </div>
+            <p className="text-xs text-muted">
+              Aqui voce gera apenas o acesso inicial e os dados de cobranca. O restante do perfil do restaurante ele preenche no proprio sistema, e essas informacoes passam a aparecer aqui para voce acompanhar.
+            </p>
             <button className="btn-primary">Criar restaurante e acesso</button>
           </form>
+
+          <div className="card space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>
+                Referencia de planos
+              </p>
+              <h3 className="mt-2 text-2xl font-bold">O que cada plano inclui</h3>
+            </div>
+            <div className="grid gap-3 md:grid-cols-3">
+              {PLANS.map((plan) => (
+                <div
+                  key={plan.name}
+                  className="rounded-3xl p-4 space-y-3"
+                  style={{
+                    border: `2px solid ${plan.highlight ? plan.color : "var(--color-border)"}`,
+                    background: plan.highlight ? `color-mix(in srgb, ${plan.color} 6%, white)` : "var(--color-surface-alt)"
+                  }}
+                >
+                  <div>
+                    <p
+                      className="text-xs font-bold uppercase tracking-widest"
+                      style={{ color: plan.color }}
+                    >
+                      {plan.name}
+                    </p>
+                    <p className="mt-1 text-lg font-bold">{plan.price}</p>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {plan.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm">
+                        <span className="mt-0.5 shrink-0" style={{ color: plan.color }}>✓</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="card space-y-3">
             <h3 className="text-xl font-bold">Maior receita acumulada</h3>
@@ -400,7 +366,7 @@ export function SaasClientsPage() {
                     <span>{formatMoney(totalClientRevenue(client))}</span>
                   </div>
                   <p className="mt-2 text-sm text-muted">
-                    {client.planName} Â· mensalidade {formatMoney(client.monthlyFee)}
+                    login {client.accessLogin} · mensalidade {formatMoney(client.monthlyFee)}
                   </p>
                 </div>
               ))
@@ -421,25 +387,25 @@ export function SaasClientsPage() {
                 Buscar
               </button>
             </div>
+
             <div className="space-y-3">
               {clients.map((client) => (
                 <button
                   key={client.id}
                   type="button"
                   className="w-full rounded-3xl p-4 text-left surface-soft"
-                  onClick={() => setSelectedClient(client)}
+                  onClick={() => { setSelectedClient(client); setChargeResult(null); setChargeError(""); }}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <strong>{client.businessName}</strong>
                       <p className="text-sm text-muted">
-                        {client.contactName} Â· {client.email || client.accessLogin} Â· vence {client.nextDueDate?.slice(0, 10) || "â€”"}
+                        {client.contactName} · login {client.accessLogin} · vencimento {client.nextDueDate || "nao informado"}
                       </p>
                     </div>
                     <div className="text-right">
                       <strong>{formatMoney(client.monthlyFee)}</strong>
-                      <p className="text-xs" style={{ color: statusBg[client.status].color }}>{statusLabel[client.status]}</p>
-                      {(() => { const d = daysOverdue(client); return d !== null ? <OverdueBadge days={d} /> : null; })()}
+                      <p className="text-xs text-muted">{client.status}</p>
                     </div>
                   </div>
                 </button>
@@ -449,7 +415,7 @@ export function SaasClientsPage() {
 
           <div className="card space-y-4">
             {!selectedClient ? (
-              <p className="text-sm text-muted">Clique em qualquer linha da tabela ou na lista para ver detalhes e editar.</p>
+              <p className="text-sm text-muted">Selecione um restaurante para ver login, receita, vencimento e acesso.</p>
             ) : (
               <>
                 <form
@@ -481,7 +447,7 @@ export function SaasClientsPage() {
                   }}
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <h3 className="text-xl font-bold">{selectedClient.businessName || "Cliente sem nome"}</h3>
+                    <h3 className="text-xl font-bold">{selectedClient.businessName}</h3>
                     <button
                       type="button"
                       className="btn-secondary"
@@ -495,14 +461,19 @@ export function SaasClientsPage() {
                       Excluir
                     </button>
                   </div>
+
                   <div className="grid gap-3 md:grid-cols-2">
                     <input className="input" name="businessName" defaultValue={selectedClient.businessName} placeholder="Nome do restaurante" />
                     <input className="input" name="contactName" defaultValue={selectedClient.contactName} placeholder="Responsavel" />
-                    <input className="input" name="accessLogin" defaultValue={selectedClient.accessLogin} placeholder="Login" />
+                    <input className="input" name="accessLogin" defaultValue={selectedClient.accessLogin} />
                     <input className="input" name="temporaryPassword" placeholder="Nova senha temporaria (opcional)" />
-                    <input className="input" name="phone" defaultValue={selectedClient.phone} placeholder="Telefone" />
-                    <input className="input" name="email" defaultValue={selectedClient.email} placeholder="E-mail" />
-                    <input className="input" name="planName" defaultValue={selectedClient.planName} placeholder="Plano" />
+                    <input className="input" name="phone" defaultValue={selectedClient.phone} />
+                    <input className="input" name="email" defaultValue={selectedClient.email} />
+                    <select className="input" name="planName" defaultValue={selectedClient.planName}>
+                      {PLANS.map((p) => (
+                        <option key={p.name} value={p.name}>{p.name} — {p.price}</option>
+                      ))}
+                    </select>
                     <input className="input" name="monthlyFee" type="number" step="0.01" defaultValue={selectedClient.monthlyFee} />
                     <input className="input" name="billingDay" type="number" min="1" max="31" defaultValue={selectedClient.billingDay} />
                     <input className="input" name="nextDueDate" type="date" defaultValue={selectedClient.nextDueDate} />
@@ -521,24 +492,117 @@ export function SaasClientsPage() {
                     </select>
                     <textarea className="input md:col-span-2 min-h-24" name="notes" defaultValue={selectedClient.notes} />
                   </div>
+
                   <div className="grid gap-3 md:grid-cols-3">
                     <div className="rounded-3xl p-4 surface-soft">
                       <p className="text-xs text-muted">Mensalidade</p>
                       <strong>{formatMoney(selectedClient.monthlyFee)}</strong>
                     </div>
                     <div className="rounded-3xl p-4 surface-soft">
-                      <p className="text-xs text-muted">Faturamento total</p>
+                      <p className="text-xs text-muted">Receita acumulada</p>
                       <strong>{formatMoney(totalClientRevenue(selectedClient))}</strong>
                     </div>
                     <div className="rounded-3xl p-4 surface-soft">
                       <p className="text-xs text-muted">Acesso</p>
-                      <strong style={{ color: accessBg[selectedClient.accessStatus].color }}>
-                        {accessLabel[selectedClient.accessStatus]}
-                      </strong>
+                      <strong>{selectedClient.accessStatus}</strong>
                     </div>
                   </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-3xl p-4 surface-soft">
+                      <p className="text-xs text-muted">Login do restaurante</p>
+                      <strong>{selectedClient.accessLogin}</strong>
+                    </div>
+                    <div className="rounded-3xl p-4 surface-soft">
+                      <p className="text-xs text-muted">Usuario tecnico</p>
+                      <strong>{selectedClient.linkedUserEmail || "Ainda nao vinculado"}</strong>
+                    </div>
+                    <div className="rounded-3xl p-4 surface-soft">
+                      <p className="text-xs text-muted">Restaurante vinculado</p>
+                      <strong>{selectedClient.linkedBarId || "Ainda nao vinculado"}</strong>
+                    </div>
+                  </div>
+
                   <button className="btn-primary">Salvar alteracoes</button>
                 </form>
+
+                <CredentialsEmailButton client={selectedClient} token={token} />
+
+                <div className="rounded-3xl p-4 surface-soft space-y-3">
+                  <div>
+                    <h4 className="text-lg font-bold">Gerar cobrança Pix</h4>
+                    <p className="text-sm text-muted">
+                      Gera um Pix via Asaas no valor da mensalidade ({formatMoney(selectedClient.monthlyFee)}) para copiar e enviar ao cliente.
+                    </p>
+                  </div>
+                  {chargeResult ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-center">
+                        <img
+                          src={`data:image/png;base64,${chargeResult.pixQrCodeBase64}`}
+                          alt="QR Code Pix"
+                          className="h-40 w-40 rounded-2xl"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted">Código Pix copia e cola</p>
+                        <div className="flex gap-2">
+                          <input
+                            className="input flex-1 font-mono text-xs"
+                            readOnly
+                            value={chargeResult.pixCode}
+                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                          />
+                          <button
+                            type="button"
+                            className="btn-secondary shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(chargeResult.pixCode);
+                            }}
+                          >
+                            Copiar
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted">Vence em: {chargeResult.dueDate}</p>
+                      <button
+                        type="button"
+                        className="btn-secondary w-full"
+                        onClick={() => setChargeResult(null)}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {chargeError ? (
+                        <p className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{chargeError}</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="btn-primary w-full"
+                        disabled={chargeLoading || selectedClient.monthlyFee <= 0}
+                        onClick={async () => {
+                          setChargeLoading(true);
+                          setChargeError("");
+                          try {
+                            const result = await apiRequest<{ pixCode: string; pixQrCodeBase64: string; dueDate: string }>(
+                              `/saas-clients/${selectedClient.id}/charge`,
+                              { method: "POST", token, body: { dueDays: 3 } }
+                            );
+                            setChargeResult(result);
+                          } catch (err) {
+                            setChargeError(err instanceof Error ? err.message : "Erro ao gerar cobrança.");
+                          } finally {
+                            setChargeLoading(false);
+                          }
+                        }}
+                      >
+                        {chargeLoading ? "Gerando..." : `Gerar Pix de ${formatMoney(selectedClient.monthlyFee)}`}
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <form
                   className="rounded-3xl p-4 surface-soft"
@@ -578,10 +642,10 @@ export function SaasClientsPage() {
                       <div key={payment.id} className="rounded-3xl p-4 surface-soft">
                         <div className="flex items-center justify-between gap-3">
                           <strong>{formatMoney(payment.amount)}</strong>
-                          <span className="text-sm text-muted">{payment.paidAt?.slice(0, 10)}</span>
+                          <span className="text-sm text-muted">{payment.paidAt}</span>
                         </div>
                         <p className="mt-2 text-sm text-muted">
-                          {payment.referenceMonth || "Sem referencia"}{payment.notes ? ` Â· ${payment.notes}` : ""}
+                          {payment.referenceMonth || "Sem referencia"} {payment.notes ? `· ${payment.notes}` : ""}
                         </p>
                       </div>
                     ))

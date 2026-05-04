@@ -197,10 +197,10 @@ export function ReportsPage() {
         <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="card">
             <div className="grid gap-4 md:grid-cols-4">
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Produtos</p><strong>{dre?.productSummary.totalProducts ?? 0}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita</p><strong>{formatMoney(dre?.productSummary.totalRevenue ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Despesa</p><strong>{formatMoney(dre?.productSummary.totalCost ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Lucro bruto</p><strong>{formatMoney(dre?.productSummary.totalGrossProfit ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Produtos</p><strong>{dre?.productSummary?.totalProducts ?? 0}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita</p><strong>{formatMoney(dre?.productSummary?.totalRevenue ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Despesa</p><strong>{formatMoney(dre?.productSummary?.totalCost ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Lucro bruto</p><strong>{formatMoney(dre?.productSummary?.totalGrossProfit ?? 0)}</strong></div>
             </div>
 
             <div className="mt-5 space-y-3">
@@ -271,11 +271,11 @@ export function ReportsPage() {
         <div className="grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="card">
             <div className="grid gap-4 md:grid-cols-5">
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita bruta</p><strong>{formatMoney(dre?.storeSummary.revenue ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receitas manuais</p><strong>{formatMoney(dre?.storeSummary.manualRevenue ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Lucro bruto</p><strong>{formatMoney(dre?.storeSummary.grossProfit ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">EBITDA</p><strong>{formatMoney(dre?.storeSummary.ebitda ?? 0)}</strong></div>
-              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Resultado líquido</p><strong>{formatMoney(dre?.storeSummary.operationalResult ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita bruta</p><strong>{formatMoney(dre?.storeSummary?.revenue ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receitas manuais</p><strong>{formatMoney(dre?.storeSummary?.manualRevenue ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Lucro bruto</p><strong>{formatMoney(dre?.storeSummary?.grossProfit ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">EBITDA</p><strong>{formatMoney(dre?.storeSummary?.ebitda ?? 0)}</strong></div>
+              <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Resultado líquido</p><strong>{formatMoney(dre?.storeSummary?.operationalResult ?? 0)}</strong></div>
             </div>
 
             <div className="mt-5 overflow-hidden rounded-3xl border" style={{ borderColor: "var(--color-border)" }}>
@@ -288,7 +288,7 @@ export function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {dre?.storeSummary.lines.map((line) => (
+                  {dre?.storeSummary?.lines?.map((line) => (
                     <tr key={line.label} style={{ background: line.kind === "result" ? "var(--color-surface-alt)" : "transparent" }}>
                       <td><strong>{line.label}</strong></td>
                       <td>{formatMoney(line.value)}</td>
@@ -332,8 +332,8 @@ export function ReportsPage() {
             <div className="card">
               <h3 className="text-xl font-bold">Comparativo rápido</h3>
               <div className="mt-4 grid gap-3 md:grid-cols-2">
-                <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita período anterior</p><strong>{formatMoney(dre?.storeSummary.previousRevenue ?? 0)}</strong></div>
-                <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Despesas período anterior</p><strong>{formatMoney(dre?.storeSummary.previousExpensesTotal ?? 0)}</strong></div>
+                <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Receita período anterior</p><strong>{formatMoney(dre?.storeSummary?.previousRevenue ?? 0)}</strong></div>
+                <div className="rounded-3xl p-4 surface-soft"><p className="text-xs text-muted">Despesas período anterior</p><strong>{formatMoney(dre?.storeSummary?.previousExpensesTotal ?? 0)}</strong></div>
               </div>
             </div>
           </div>

@@ -1,29 +1,28 @@
 import { Router } from "express";
 import { z } from "zod";
-import { requireAuth, requirePlatformAdmin } from "../middleware/auth";
-import { createSaasBillingCharge, createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, refreshSaasBillingCharge, registerSaasPayment, updateSaasClient } from "../services/platform";
-import { emailService } from "../services/email";
+import { requireAuth, requireRole } from "../middleware/auth";
+import { createSaasClient, deleteSaasClient, getOwnerManagerDashboard, getSaasClients, getSaasOverview, registerSaasPayment, updateSaasClient } from "../services/platform";
+import { createSaasClientCharge, isAsaasConfigured } from "../services/asaas";
+import { sendAccessCredentialsEmail, isEmailConfigured } from "../services/email";
 
 const router = Router();
 
-router.use(requireAuth, requirePlatformAdmin);
-
-router.get("/", async (req, res) => {
+router.get("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const clients = await getSaasClients(req.query.search ? String(req.query.search) : undefined);
   res.json(clients);
 });
 
-router.get("/overview", async (_req, res) => {
+router.get("/overview", requireAuth, requireRole("ADMIN"), async (_req, res) => {
   const overview = await getSaasOverview();
   res.json(overview);
 });
 
-router.get("/owner-dashboard", async (_req, res) => {
+router.get("/owner-dashboard", requireAuth, requireRole("ADMIN"), async (_req, res) => {
   const dashboard = await getOwnerManagerDashboard();
   res.json(dashboard);
 });
 
-router.post("/", async (req, res) => {
+router.post("/", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const data = z.object({
     businessName: z.string().optional().default(""),
     contactName: z.string().optional().default(""),
@@ -31,8 +30,6 @@ router.post("/", async (req, res) => {
     temporaryPassword: z.string().min(5).default("12345"),
     phone: z.string().default(""),
     email: z.string().default(""),
-    cpfCnpj: z.string().default(""),
-    asaasCustomerId: z.string().default(""),
     planName: z.string().default("Plano Base"),
     monthlyFee: z.number().min(0).default(0),
     billingDay: z.number().int().min(1).max(31).default(10),
@@ -47,47 +44,14 @@ router.post("/", async (req, res) => {
       paidAt: z.string(),
       referenceMonth: z.string().default(""),
       notes: z.string().default("")
-    })).default([]),
-    billingCharges: z.array(z.object({
-      id: z.string(),
-      provider: z.literal("ASAAS").default("ASAAS"),
-      externalId: z.string(),
-      amount: z.number(),
-      dueDate: z.string(),
-      referenceMonth: z.string().default(""),
-      description: z.string().default(""),
-      status: z.enum(["PENDENTE", "PAGO", "VENCIDO", "CANCELADO", "FALHOU"]).default("PENDENTE"),
-      invoiceUrl: z.string().default(""),
-      bankSlipUrl: z.string().default(""),
-      pixQrCode: z.string().default(""),
-      pixQrCodeBase64: z.string().default(""),
-      paidAt: z.string().default(""),
-      createdAt: z.string()
     })).default([])
   }).parse(req.body);
 
   const client = await createSaasClient(data);
-  if (client.email) {
-    try {
-      if (!emailService.isConfigured()) {
-        console.warn("[email] SES SMTP nao configurado; email de boas-vindas SaaS nao enviado.");
-      } else {
-        await emailService.sendWelcomeEmail({
-          name: client.contactName,
-          email: client.email,
-          login: client.accessLogin,
-          password: client.temporaryPassword,
-          businessName: client.businessName
-        });
-      }
-    } catch (err) {
-      console.error("[email] Falha ao enviar email de boas-vindas SaaS.", err);
-    }
-  }
   res.status(201).json(client);
 });
 
-router.put("/:id", async (req, res) => {
+router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const data = z.object({
     businessName: z.string().min(2).optional(),
     contactName: z.string().min(2).optional(),
@@ -95,7 +59,6 @@ router.put("/:id", async (req, res) => {
     temporaryPassword: z.string().min(5).optional(),
     phone: z.string().optional(),
     email: z.string().optional(),
-    cpfCnpj: z.string().optional(),
     planName: z.string().optional(),
     monthlyFee: z.number().min(0).optional(),
     billingDay: z.number().int().min(1).max(31).optional(),
@@ -110,32 +73,7 @@ router.put("/:id", async (req, res) => {
   res.json(client);
 });
 
-router.post("/:id/billing/asaas-pix", async (req, res) => {
-  const data = z.object({
-    amount: z.number().positive().optional(),
-    dueDate: z.string().optional(),
-    referenceMonth: z.string().optional(),
-    description: z.string().optional()
-  }).parse(req.body);
-
-  const result = await createSaasBillingCharge(req.params.id, data);
-  if (!result) {
-    return res.status(404).json({ message: "Cliente SaaS nao encontrado." });
-  }
-
-  res.status(201).json(result);
-});
-
-router.post("/:id/billing/:chargeId/refresh", async (req, res) => {
-  const client = await refreshSaasBillingCharge(req.params.id, req.params.chargeId);
-  if (!client) {
-    return res.status(404).json({ message: "Cobranca SaaS nao encontrada." });
-  }
-
-  res.json(client);
-});
-
-router.post("/:id/payments", async (req, res) => {
+router.post("/:id/payments", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const data = z.object({
     amount: z.number().min(0),
     paidAt: z.string(),
@@ -147,7 +85,64 @@ router.post("/:id/payments", async (req, res) => {
   res.json(client);
 });
 
-router.delete("/:id", async (req, res) => {
+router.post("/:id/charge", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const configured = await isAsaasConfigured();
+  if (!configured) {
+    return res.status(400).json({ error: "Asaas não configurado. Adicione a API Key em Configurações → Pagamentos." });
+  }
+
+  const clients = await getSaasClients();
+  const client = clients.find((c) => c.id === req.params.id);
+  if (!client) return res.status(404).json({ error: "Cliente não encontrado." });
+  if (!client.monthlyFee || client.monthlyFee <= 0) {
+    return res.status(400).json({ error: "Mensalidade não definida para este cliente." });
+  }
+
+  const { dueDays, description, cpfCnpj } = z.object({
+    dueDays: z.number().int().min(1).max(30).default(3),
+    description: z.string().optional(),
+    cpfCnpj: z.string().optional()
+  }).parse(req.body);
+
+  const charge = await createSaasClientCharge({
+    clientName: client.contactName || client.businessName || "Cliente",
+    cpfCnpj,
+    email: client.email || undefined,
+    phone: client.phone || undefined,
+    amount: client.monthlyFee,
+    description: description ?? `Mensalidade ${client.planName} — ${client.businessName || client.accessLogin}`,
+    dueDays
+  });
+
+  res.json(charge);
+});
+
+router.post("/:id/send-credentials", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const configured = await isEmailConfigured();
+  if (!configured) {
+    return res.status(400).json({ error: "E-mail não configurado. Acesse Configurações → E-mail e SMTP." });
+  }
+
+  const clients = await getSaasClients();
+  const client = clients.find((c) => c.id === req.params.id);
+  if (!client) return res.status(404).json({ error: "Cliente não encontrado." });
+  if (!client.email) return res.status(400).json({ error: "Este cliente não tem e-mail cadastrado." });
+
+  const { senha } = z.object({ senha: z.string().min(1).default("12345") }).parse(req.body);
+
+  await sendAccessCredentialsEmail({
+    to: client.email,
+    nome: client.contactName || client.businessName || "Cliente",
+    restaurante: client.businessName || client.accessLogin,
+    login: client.accessLogin,
+    senha,
+    planName: client.planName || "Plano Base"
+  });
+
+  res.json({ ok: true });
+});
+
+router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
   const result = await deleteSaasClient(req.params.id);
   res.json(result);
 });
