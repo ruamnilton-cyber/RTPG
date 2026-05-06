@@ -21,6 +21,7 @@ export const allMenuItems: MenuItem[] = [
   { to: "/fichas", label: "Ficha técnica", emoji: "📝", roles: ["ADMIN", "GERENTE"] },
   { to: "/reservas", label: "Reservas", emoji: "📅", roles: ["ADMIN", "GERENTE", "GARCOM", "CAIXA"] },
   { to: "/ia", label: "Painel IA", emoji: "✨", roles: ["ADMIN", "GERENTE"] },
+  { to: "/ia-import", label: "Importar por IA", emoji: "🤖", roles: ["ADMIN"] },
   { to: "/organizacao", label: "Organização", emoji: "🏢", roles: ["ADMIN", "GERENTE"] },
   { to: "/configuracoes", label: "Configurações", emoji: "⚙", roles: ["ADMIN", "GERENTE"] },
   { to: "/bares", label: "Bares", emoji: "🍺", roles: ["ADMIN"] },

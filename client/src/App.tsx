@@ -3,6 +3,7 @@ import { AppLayout } from "./components/layout";
 import { RestaurantOwnerLayout } from "./components/restaurant-owner-layout";
 import { useAuth } from "./state/auth";
 import { AiPanelPage } from "./pages/ai-panel";
+import { AiImportPage } from "./pages/ai-import";
 import { BarsPage } from "./pages/bars";
 import { CashPage } from "./pages/cash";
 import { CustomersPage } from "./pages/customers";
@@ -65,6 +66,7 @@ function RestaurantAdminRoutes() {
         <Route path="reservas" element={<ReservationsPage />} />
         <Route path="whatsapp" element={<AiPanelPage />} />
         <Route path="ia" element={<Navigate to="/painel-dono/whatsapp" replace />} />
+        <Route path="ia-import" element={<AiImportPage />} />
         <Route path="relatorios" element={<ReportsCenterPage />} />
       </Route>
       <Route path="/" element={<Navigate to="/painel-dono" replace />} />
@@ -99,6 +101,7 @@ function TeamRoutes() {
         <Route path="organizacao" element={<OrganizationPage />} />
         <Route path="pedidos" element={<OrdersCenterPage />} />
         <Route path="ia" element={<AiPanelPage />} />
+        <Route path="ia-import" element={<AiImportPage />} />
         <Route path="relatorios" element={<ReportsCenterPage />} />
         <Route path="reservas" element={<ReservationsPage />} />
       </Route>

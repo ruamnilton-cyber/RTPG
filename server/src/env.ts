@@ -22,5 +22,7 @@ export const appEnv = {
   jwtSecret: process.env.JWT_SECRET,
   port: Number(process.env.PORT ?? 3333),
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? null,
-  telegramAdminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ?? null
+  telegramAdminChatId: process.env.TELEGRAM_ADMIN_CHAT_ID ?? null,
+  openaiApiKey: process.env.OPENAI_API_KEY ?? null,
+  openaiMenuImportModel: process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini"
 };

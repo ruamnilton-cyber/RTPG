@@ -43,3 +43,11 @@ services:
         value: comercial@rtpgapp.com
       - key: SES_FROM_NAME
         value: RTPG App
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MENU_IMPORT_MODEL
+        value: gpt-4.1-mini
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ADMIN_CHAT_ID
+        sync: false

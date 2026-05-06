@@ -257,3 +257,81 @@ export async function notifyAdmin(text: string) {
   if (!id) return;
   return sendMessage(id, text);
 }
+
+async function sendWithRetry(chatId: string | number, text: string, maxAttempts = 3): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await sendMessage(chatId, text) as { ok?: boolean } | null;
+      if (result?.ok) {
+        console.log(`[Telegram] Mensagem enviada (tentativa ${attempt}).`);
+        return;
+      }
+      throw new Error(`Telegram respondeu ok=false na tentativa ${attempt}`);
+    } catch (err) {
+      const isLast = attempt === maxAttempts;
+      console.error(`[Telegram] Falha ao enviar (tentativa ${attempt}/${maxAttempts}): ${err instanceof Error ? err.message : err}`);
+      if (!isLast) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+}
+
+function statusIcon(status: string) {
+  if (status === "ATIVO") return "✅";
+  if (status === "VIP") return "⭐";
+  if (status === "INATIVO") return "🔴";
+  return "❓";
+}
+
+export function notifyCustomerCreated(customer: {
+  name: string;
+  phone?: string;
+  email?: string;
+  status: string;
+  origin?: string;
+  notes?: string;
+}): void {
+  const id = getAdminChatId();
+  if (!id) return;
+
+  const lines = [
+    `${statusIcon(customer.status)} <b>Novo cliente cadastrado</b>`,
+    "",
+    `👤 Nome: <b>${customer.name}</b>`,
+    customer.phone ? `📱 Telefone: ${customer.phone}` : null,
+    customer.email ? `📧 E-mail: ${customer.email}` : null,
+    `📌 Status: ${customer.status}`,
+    customer.origin ? `🔗 Origem: ${customer.origin}` : null,
+    customer.notes ? `📝 Obs: ${customer.notes}` : null
+  ].filter(Boolean).join("\n");
+
+  sendWithRetry(id, lines).catch((err) => {
+    console.error("[Telegram] Erro ao notificar novo cliente:", err);
+  });
+}
+
+export function notifyCustomerUpdated(customer: {
+  name: string;
+  phone?: string;
+  email?: string;
+  status: string;
+  notes?: string;
+}): void {
+  const id = getAdminChatId();
+  if (!id) return;
+
+  const lines = [
+    `${statusIcon(customer.status)} <b>Cliente atualizado</b>`,
+    "",
+    `👤 Nome: <b>${customer.name}</b>`,
+    customer.phone ? `📱 Telefone: ${customer.phone}` : null,
+    customer.email ? `📧 E-mail: ${customer.email}` : null,
+    `📌 Novo status: ${customer.status}`,
+    customer.notes ? `📝 Obs: ${customer.notes}` : null
+  ].filter(Boolean).join("\n");
+
+  sendWithRetry(id, lines).catch((err) => {
+    console.error("[Telegram] Erro ao notificar atualização de cliente:", err);
+  });
+}

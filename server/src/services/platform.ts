@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma";
 import { parseDateRange } from "../lib/utils";
 import { getBarStoredSetting, getStoredSetting, setBarStoredSetting, setStoredSetting } from "./system-settings";
 import { assertCpfCnpj, createPlatformAsaasCustomer, createPlatformAsaasPixCharge, findPlatformAsaasCustomer, getPlatformAsaasPaymentStatus, mapAsaasChargeStatus, normalizeCpfCnpj } from "./platform-asaas";
+import { notifyCustomerCreated, notifyCustomerUpdated } from "./telegram-bot";
 
 const DEFAULT_ORGANIZATION: OrganizationSetting = {
   companyName: "RTPG Gestao",
@@ -357,6 +358,17 @@ export async function createCustomer(barId: string, input: Omit<CustomerRecord, 
     createdAt: new Date().toISOString()
   });
   await saveCustomers(barId, [nextItem, ...current]);
+
+  // fire-and-forget — never blocks the response
+  notifyCustomerCreated({
+    name: nextItem.name,
+    phone: nextItem.phone || undefined,
+    email: nextItem.email || undefined,
+    status: nextItem.status,
+    origin: nextItem.origin,
+    notes: nextItem.notes || undefined
+  });
+
   return nextItem;
 }
 
@@ -368,7 +380,20 @@ export async function updateCustomer(barId: string, id: string, input: Partial<C
       : item
   ));
   await saveCustomers(barId, next);
-  return next.find((item) => item.id === id) ?? null;
+  const updated = next.find((item) => item.id === id) ?? null;
+
+  if (updated) {
+    // fire-and-forget — never blocks the response
+    notifyCustomerUpdated({
+      name: updated.name,
+      phone: updated.phone || undefined,
+      email: updated.email || undefined,
+      status: updated.status,
+      notes: updated.notes || undefined
+    });
+  }
+
+  return updated;
 }
 
 export async function deleteCustomer(barId: string, id: string) {

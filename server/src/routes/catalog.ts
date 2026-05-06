@@ -5,6 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { requireBar } from "../middleware/bar";
 import { logAction } from "../services/logging";
 import { calculateProductCost } from "../services/inventory";
+import { parseMenuText } from "../services/ai-parser";
 
 const router = Router();
 router.use(requireAuth, requireBar);
@@ -317,6 +318,68 @@ router.put("/products/:id/recipe", requireRole("ADMIN"), async (req, res) => {
   });
 
   res.json({ ...recipe, recipeCost: recipe ? calculateProductCost(recipe.recipeItems) : 0 });
+});
+
+// ── AI Menu Import ────────────────────────────────────────────────────────────
+router.post("/import-menu", requireRole("ADMIN"), async (req, res) => {
+  const { text, dryRun } = z.object({
+    text: z.string().min(10, "Texto do cardápio muito curto"),
+    dryRun: z.boolean().default(false)
+  }).parse(req.body);
+
+  const parsed = await parseMenuText(text);
+
+  if (dryRun) {
+    return res.json({ items: parsed, saved: 0, updated: 0, skipped: 0 });
+  }
+
+  let saved = 0;
+  let updated = 0;
+  let skipped = 0;
+  const results: Array<{ name: string; action: "created" | "updated" | "skipped"; id: string }> = [];
+
+  for (const item of parsed) {
+    const existing = await prisma.product.findFirst({
+      where: {
+        barId: req.barId!,
+        name: { equals: item.name, mode: "insensitive" }
+      }
+    });
+
+    if (existing) {
+      if (item.price > 0 && Number(existing.salePrice) !== item.price) {
+        await prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            salePrice: item.price,
+            description: item.description || existing.description
+          }
+        });
+        await logAction({ userId: req.user!.userId, action: "UPDATE", entityType: "Product", entityId: existing.id, description: "Atualizado via leitura de cardápio por IA" });
+        updated++;
+        results.push({ name: item.name, action: "updated", id: existing.id });
+      } else {
+        skipped++;
+        results.push({ name: item.name, action: "skipped", id: existing.id });
+      }
+    } else {
+      const product = await prisma.product.create({
+        data: {
+          barId: req.barId!,
+          name: item.name,
+          description: item.description || null,
+          salePrice: item.price,
+          saleUnit: "UNIDADE",
+          active: true
+        }
+      });
+      await logAction({ userId: req.user!.userId, action: "CREATE", entityType: "Product", entityId: product.id, description: "Criado via leitura de cardápio por IA" });
+      saved++;
+      results.push({ name: item.name, action: "created", id: product.id });
+    }
+  }
+
+  res.status(201).json({ items: parsed, results, saved, updated, skipped });
 });
 
 export default router;
