@@ -13,7 +13,7 @@ git -C "$APP_DIR" reset --hard "origin/$APP_BRANCH"
 cd "$APP_DIR"
 
 echo "==> Instalando dependencias"
-npm ci
+npm install --production=false
 
 echo "==> Migrando banco de dados"
 RTPG_DATA_DIR="$DATA_DIR" npm run db:push
