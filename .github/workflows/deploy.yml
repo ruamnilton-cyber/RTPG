@@ -29,4 +29,7 @@ jobs:
           key: ${{ env.LIGHTSAIL_SSH_KEY }}
           script: |
             cd /opt/rtpg-app
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
             bash deploy/aws-lightsail/update-rtpg.sh
