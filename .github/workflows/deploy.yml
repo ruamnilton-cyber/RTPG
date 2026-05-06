@@ -14,6 +14,7 @@ jobs:
       LIGHTSAIL_HOST: ${{ secrets.LIGHTSAIL_HOST }}
       LIGHTSAIL_USER: ${{ secrets.LIGHTSAIL_USER }}
       LIGHTSAIL_SSH_KEY: ${{ secrets.LIGHTSAIL_SSH_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Skip deploy when Lightsail secrets are missing
@@ -27,9 +28,14 @@ jobs:
           host: ${{ env.LIGHTSAIL_HOST }}
           username: ${{ env.LIGHTSAIL_USER }}
           key: ${{ env.LIGHTSAIL_SSH_KEY }}
+          envs: OPENAI_API_KEY
           script: |
             cd /opt/rtpg-app
             git fetch origin main
             git checkout main
             git reset --hard origin/main
+            # Inject secrets into .env (idempotent)
+            grep -q '^OPENAI_API_KEY=' .env && \
+              sed -i "s|^OPENAI_API_KEY=.*|OPENAI_API_KEY=$OPENAI_API_KEY|" .env || \
+              echo "OPENAI_API_KEY=$OPENAI_API_KEY" >> .env
             bash deploy/aws-lightsail/update-rtpg.sh
