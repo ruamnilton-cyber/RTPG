@@ -111,8 +111,8 @@ export function AiImportPage() {
     setMenuResult(null);
     try {
       const body = menuImage
-        ? { image: menuImage.base64, imageMime: menuImage.mime, dryRun: menuDry }
-        : { text: menuText, dryRun: menuDry };
+        ? { image: menuImage.base64, imageMime: menuImage.mime, dryRun: true }
+        : { text: menuText, dryRun: true };
 
       const data = await apiRequest<MenuImportResponse>("/catalog/import-menu", {
         method: "POST",
@@ -237,22 +237,36 @@ export function AiImportPage() {
             </div>
           )}
 
-          <label className="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3">
-            <input type="checkbox" checked={menuDry} onChange={(e) => setMenuDry(e.target.checked)} />
-            <span className="text-sm">
-              <strong>Simulação</strong> — visualiza sem salvar no banco
-            </span>
-          </label>
-
           {menuError && (
             <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 whitespace-pre-wrap break-words">
               ⚠️ {menuError}
             </div>
           )}
 
-          <button className="btn-primary" disabled={menuLoading || !canSubmitMenu}>
-            {menuLoading ? "⏳ Processando imagem..." : menuDry ? "Pré-visualizar" : "Importar cardápio"}
-          </button>
+          {/* Se já fez preview e tem itens: mostra botão de salvar + opção de refazer */}
+          {menuResult && menuResult.items.length > 0 && !menuResult.results ? (
+            <div className="space-y-2">
+              <button
+                type="button"
+                className="btn-primary w-full py-4 text-base"
+                disabled={menuLoading}
+                onClick={handleMenuConfirm}
+              >
+                {menuLoading ? "⏳ Salvando no cardápio..." : `Salvar ${menuResult.items.length} itens no cardápio`}
+              </button>
+              <button
+                type="submit"
+                className="w-full rounded-2xl border px-4 py-2 text-sm text-muted hover:bg-gray-50"
+                disabled={menuLoading || !canSubmitMenu}
+              >
+                Refazer leitura
+              </button>
+            </div>
+          ) : (
+            <button className="btn-primary" disabled={menuLoading || !canSubmitMenu}>
+              {menuLoading ? "⏳ Processando..." : "Ler cardápio"}
+            </button>
+          )}
         </form>
 
         {/* Result panel */}
@@ -311,15 +325,6 @@ export function AiImportPage() {
                     );
                   })}
                 </div>
-              )}
-              {menuDry && menuResult.items.length > 0 && !menuResult.results && (
-                <button
-                  className="btn-primary w-full"
-                  disabled={menuLoading}
-                  onClick={handleMenuConfirm}
-                >
-                  {menuLoading ? "⏳ Salvando..." : `Confirmar importação (${menuResult.items.length} itens)`}
-                </button>
               )}
               {menuResult.results && menuResult.saved + menuResult.updated > 0 && (
                 <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800 font-semibold">
