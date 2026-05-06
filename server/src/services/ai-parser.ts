@@ -14,8 +14,7 @@ function getModel() {
 }
 
 function getVisionModel() {
-  // gpt-4.1-mini supports vision; fall back to gpt-4o-mini if overridden to a non-vision model
-  return process.env.OPENAI_VISION_MODEL ?? process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini";
+  return process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini";
 }
 
 export const menuItemSchema = z.object({
@@ -88,19 +87,18 @@ export async function parseMenuImage(base64: string, mimeType: string): Promise<
   const client = getClient();
 
   const prompt = `Você é um parser de cardápio. Analise a imagem e extraia todos os pratos/bebidas visíveis.
-Retorne um objeto JSON com a chave "items" contendo um array no formato:
+Retorne SOMENTE um JSON válido com a chave "items", sem texto adicional:
 {"items":[{"name":"Nome do Prato","description":"Descrição breve","price":00.00}]}
 Regras:
 - name: nome normalizado (Title Case)
 - description: descrição do prato ou string vazia ""
 - price: preço como número decimal (ex: 39.90). Se não houver preço visível, use 0
-- Não inclua categorias como itens, apenas pratos/bebidas reais
+- Não inclua categorias, apenas pratos/bebidas reais
 - Leia todo o texto visível na imagem, incluindo preços`;
 
   const completion = await client.chat.completions.create({
     model: getVisionModel(),
     max_tokens: 2048,
-    response_format: { type: "json_object" },
     messages: [
       {
         role: "user",
@@ -113,8 +111,16 @@ Regras:
   });
 
   const raw = completion.choices[0]?.message?.content?.trim() ?? '{"items":[]}';
-  const parsed = JSON.parse(raw) as { items?: unknown[] } | unknown[];
-  const result = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
+
+  let result: unknown[];
+  try {
+    const parsed = extractJson(raw) as { items?: unknown[] } | unknown[];
+    result = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
+  } catch {
+    console.error("[AI] Resposta bruta da visão:", raw);
+    throw new Error("A IA não conseguiu estruturar os itens da imagem. Tente uma foto mais nítida ou use o modo texto.");
+  }
+
   const items = z.array(menuItemSchema).parse(result);
   return items.map((item) => ({ ...item, name: normalizeName(item.name) }));
 }
