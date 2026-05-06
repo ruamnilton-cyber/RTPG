@@ -1,5 +1,12 @@
 import "./env";
 import "express-async-errors";
+
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
 import path from "node:path";
 import express from "express";
 import cors from "cors";
