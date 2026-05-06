@@ -38,6 +38,14 @@ const env = {
 
 const tsxBin = findNodeModulesBin("tsx/dist/cli.mjs");
 const serverEntry = path.join(projectRoot, "server/src/index.ts");
+const port = env.PORT ?? 3333;
+
+// Kill any orphaned process occupying the port before starting (prevents EADDRINUSE crash loop)
+try {
+  const { execSync } = await import("node:child_process");
+  execSync(`fuser -k ${port}/tcp 2>/dev/null || true`, { stdio: "ignore" });
+  await new Promise((r) => setTimeout(r, 500));
+} catch { /* fuser not available, ignore */ }
 
 const child = spawn(process.execPath, [tsxBin, serverEntry], {
   stdio: "inherit",
