@@ -8,7 +8,7 @@ DATA_DIR="${DATA_DIR:-/opt/rtpg-data}"
 echo "==> Atualizando codigo"
 git -C "$APP_DIR" fetch origin "$APP_BRANCH"
 git -C "$APP_DIR" checkout "$APP_BRANCH"
-git -C "$APP_DIR" pull --ff-only origin "$APP_BRANCH"
+git -C "$APP_DIR" reset --hard "origin/$APP_BRANCH"
 
 cd "$APP_DIR"
 
