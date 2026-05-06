@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from "../middleware/auth";
 import { requireBar } from "../middleware/bar";
 import { logAction } from "../services/logging";
 import { calculateProductCost } from "../services/inventory";
-import { parseMenuText } from "../services/ai-parser";
+import { parseMenuImage, parseMenuText } from "../services/ai-parser";
 
 const router = Router();
 router.use(requireAuth, requireBar);
@@ -322,12 +322,21 @@ router.put("/products/:id/recipe", requireRole("ADMIN"), async (req, res) => {
 
 // ── AI Menu Import ────────────────────────────────────────────────────────────
 router.post("/import-menu", requireRole("ADMIN"), async (req, res) => {
-  const { text, dryRun } = z.object({
-    text: z.string().min(10, "Texto do cardápio muito curto"),
+  const { text, image, imageMime, dryRun } = z.object({
+    text: z.string().optional(),
+    image: z.string().optional(),       // base64 encoded image
+    imageMime: z.string().optional(),   // e.g. "image/jpeg"
     dryRun: z.boolean().default(false)
   }).parse(req.body);
 
-  const parsed = await parseMenuText(text);
+  if (!text && !image) {
+    res.status(400).json({ error: "Envie texto ou imagem do cardápio." });
+    return;
+  }
+
+  const parsed = image
+    ? await parseMenuImage(image, imageMime ?? "image/jpeg")
+    : await parseMenuText(text!);
 
   if (dryRun) {
     return res.json({ items: parsed, saved: 0, updated: 0, skipped: 0 });

@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { ClipboardEvent, DragEvent, FormEvent, useRef, useState } from "react";
 import { PageHeader } from "../components/common";
 import { apiRequest } from "../lib/api";
 import { formatMoney } from "../lib/format";
@@ -26,9 +26,26 @@ type InvoiceImportResponse = {
 };
 
 function actionBadge(action: string) {
-  if (action === "created" || action === "supply_created_and_purchased") return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Criado</span>;
-  if (action === "updated" || action === "purchase_added") return <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">Atualizado</span>;
+  if (action === "created" || action === "supply_created_and_purchased")
+    return <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800">Criado</span>;
+  if (action === "updated" || action === "purchase_added")
+    return <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">Atualizado</span>;
   return <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">Sem alteração</span>;
+}
+
+function fileToBase64(file: File): Promise<{ base64: string; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // result = "data:image/jpeg;base64,XXXX"
+      const [header, base64] = result.split(",");
+      const mime = header.split(":")[1].split(";")[0];
+      resolve({ base64, mime });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export function AiImportPage() {
@@ -36,10 +53,13 @@ export function AiImportPage() {
 
   // Menu state
   const [menuText, setMenuText] = useState("");
+  const [menuImage, setMenuImage] = useState<{ base64: string; mime: string; preview: string } | null>(null);
   const [menuDry, setMenuDry] = useState(true);
   const [menuLoading, setMenuLoading] = useState(false);
   const [menuResult, setMenuResult] = useState<MenuImportResponse | null>(null);
   const [menuError, setMenuError] = useState("");
+  const [menuDragOver, setMenuDragOver] = useState(false);
+  const menuFileRef = useRef<HTMLInputElement>(null);
 
   // Invoice state
   const [invoiceText, setInvoiceText] = useState("");
@@ -49,16 +69,56 @@ export function AiImportPage() {
   const [invoiceResult, setInvoiceResult] = useState<InvoiceImportResponse | null>(null);
   const [invoiceError, setInvoiceError] = useState("");
 
+  async function applyImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const { base64, mime } = await fileToBase64(file);
+    const preview = URL.createObjectURL(file);
+    setMenuImage({ base64, mime, preview });
+    setMenuText("");
+  }
+
+  function handleMenuPaste(e: ClipboardEvent<HTMLDivElement>) {
+    const items = Array.from(e.clipboardData.items);
+    const imgItem = items.find((i) => i.type.startsWith("image/"));
+    if (imgItem) {
+      e.preventDefault();
+      const file = imgItem.getAsFile();
+      if (file) applyImageFile(file);
+    }
+  }
+
+  function handleMenuDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setMenuDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) applyImageFile(file);
+  }
+
+  function handleMenuFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) applyImageFile(file);
+  }
+
+  function clearImage() {
+    setMenuImage(null);
+    if (menuFileRef.current) menuFileRef.current.value = "";
+  }
+
   async function handleMenuSubmit(e: FormEvent) {
     e.preventDefault();
+    if (!menuImage && menuText.trim().length < 5) return;
     setMenuLoading(true);
     setMenuError("");
     setMenuResult(null);
     try {
+      const body = menuImage
+        ? { image: menuImage.base64, imageMime: menuImage.mime, dryRun: menuDry }
+        : { text: menuText, dryRun: menuDry };
+
       const data = await apiRequest<MenuImportResponse>("/catalog/import-menu", {
         method: "POST",
         token,
-        body: { text: menuText, dryRun: menuDry }
+        body
       });
       setMenuResult(data);
     } catch (err) {
@@ -91,10 +151,10 @@ export function AiImportPage() {
     <div className="space-y-8 pb-10">
       <PageHeader
         title="Importação por IA"
-        subtitle="Use inteligência artificial para cadastrar o cardápio ou importar notas fiscais automaticamente"
+        subtitle="Cole a foto do cardápio ou cole o texto — a IA identifica pratos, preços e cadastra tudo automaticamente"
       />
 
-      {/* Menu Import */}
+      {/* ── Menu Import ───────────────────────────────────────── */}
       <section className="grid gap-6 xl:grid-cols-2">
         <form className="card space-y-4" onSubmit={handleMenuSubmit}>
           <div>
@@ -103,24 +163,68 @@ export function AiImportPage() {
             </p>
             <h3 className="mt-2 text-2xl font-bold">Importar cardápio por IA</h3>
             <p className="mt-1 text-sm text-muted">
-              Cole ou digite o texto do cardápio. A IA identificará pratos, descrições e preços e os cadastrará automaticamente.
+              Cole uma foto (<kbd>Ctrl+V</kbd>), arraste a imagem ou cole o texto do cardápio.
             </p>
           </div>
 
-          <textarea
-            className="input min-h-[180px] resize-y font-mono text-sm"
-            placeholder={"Pizza Margherita - R$39,90\nMolho de tomate, mussarela e manjericão\n\nRisoto de funghi - R$52,00\n..."}
-            value={menuText}
-            onChange={(e) => setMenuText(e.target.value)}
-            required
-          />
+          {/* Drop / paste zone */}
+          <div
+            className={`relative cursor-pointer rounded-3xl border-2 border-dashed transition ${menuDragOver ? "border-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)]" : "border-[var(--color-border)]"}`}
+            onPaste={handleMenuPaste}
+            onDragOver={(e) => { e.preventDefault(); setMenuDragOver(true); }}
+            onDragLeave={() => setMenuDragOver(false)}
+            onDrop={handleMenuDrop}
+            onClick={() => !menuImage && menuFileRef.current?.click()}
+            tabIndex={0}
+            onKeyDown={(e) => e.key === "Enter" && menuFileRef.current?.click()}
+          >
+            {menuImage ? (
+              <div className="relative p-2">
+                <img src={menuImage.preview} alt="Cardápio" className="max-h-72 w-full rounded-2xl object-contain" />
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); clearImage(); }}
+                  className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white text-sm hover:bg-black/80"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-2 px-4 py-10 text-center text-muted">
+                <span className="text-4xl">📸</span>
+                <p className="text-sm font-medium">Cole a foto aqui (<kbd>Ctrl+V</kbd>)</p>
+                <p className="text-xs">ou arraste / clique para selecionar arquivo</p>
+              </div>
+            )}
+            <input
+              ref={menuFileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleMenuFileChange}
+            />
+          </div>
+
+          {/* Divider */}
+          {!menuImage && (
+            <div className="flex items-center gap-3 text-xs text-muted">
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+              ou cole o texto abaixo
+              <div className="h-px flex-1 bg-[var(--color-border)]" />
+            </div>
+          )}
+
+          {!menuImage && (
+            <textarea
+              className="input min-h-[120px] resize-y font-mono text-sm"
+              placeholder={"Pizza Margherita - R$39,90\nMolho de tomate, mussarela e manjericão\n\nRisoto de funghi - R$52,00\n..."}
+              value={menuText}
+              onChange={(e) => setMenuText(e.target.value)}
+            />
+          )}
 
           <label className="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3">
-            <input
-              type="checkbox"
-              checked={menuDry}
-              onChange={(e) => setMenuDry(e.target.checked)}
-            />
+            <input type="checkbox" checked={menuDry} onChange={(e) => setMenuDry(e.target.checked)} />
             <span className="text-sm">
               <strong>Simulação</strong> — só visualiza os itens, não salva no banco
             </span>
@@ -130,7 +234,10 @@ export function AiImportPage() {
             <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{menuError}</div>
           )}
 
-          <button className="btn-primary" disabled={menuLoading || menuText.trim().length < 10}>
+          <button
+            className="btn-primary"
+            disabled={menuLoading || (!menuImage && menuText.trim().length < 5)}
+          >
             {menuLoading ? "Processando..." : menuDry ? "Pré-visualizar" : "Importar cardápio"}
           </button>
         </form>
@@ -146,7 +253,7 @@ export function AiImportPage() {
 
           {!menuResult && !menuLoading && (
             <div className="rounded-3xl p-4 surface-soft text-sm text-muted">
-              Nenhuma importação realizada ainda. Cole o texto do cardápio ao lado.
+              Nenhuma importação realizada ainda. Cole a foto ou o texto do cardápio ao lado.
             </div>
           )}
 
@@ -187,10 +294,9 @@ export function AiImportPage() {
         </div>
       </section>
 
-      {/* Divider */}
       <hr className="border-t border-dashed opacity-30" />
 
-      {/* Invoice Import */}
+      {/* ── Invoice Import ────────────────────────────────────── */}
       <section className="grid gap-6 xl:grid-cols-2">
         <form className="card space-y-4" onSubmit={handleInvoiceSubmit}>
           <div>
@@ -199,7 +305,7 @@ export function AiImportPage() {
             </p>
             <h3 className="mt-2 text-2xl font-bold">Importar nota fiscal por IA</h3>
             <p className="mt-1 text-sm text-muted">
-              Cole o texto da nota fiscal. A IA extrairá produtos, quantidades e custos para atualizar o estoque automaticamente.
+              Cole o texto da nota fiscal. A IA extrairá produtos, quantidades e custos para atualizar o estoque.
             </p>
           </div>
 
@@ -219,11 +325,7 @@ export function AiImportPage() {
           />
 
           <label className="flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3">
-            <input
-              type="checkbox"
-              checked={invoiceDry}
-              onChange={(e) => setInvoiceDry(e.target.checked)}
-            />
+            <input type="checkbox" checked={invoiceDry} onChange={(e) => setInvoiceDry(e.target.checked)} />
             <span className="text-sm">
               <strong>Simulação</strong> — só visualiza os itens, não salva no estoque
             </span>
@@ -238,7 +340,6 @@ export function AiImportPage() {
           </button>
         </form>
 
-        {/* Invoice result */}
         <div className="card space-y-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.3em]" style={{ color: "var(--color-primary)" }}>

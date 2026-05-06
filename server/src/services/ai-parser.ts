@@ -13,6 +13,11 @@ function getModel() {
   return process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini";
 }
 
+function getVisionModel() {
+  // gpt-4.1-mini supports vision; fall back to gpt-4o-mini if overridden to a non-vision model
+  return process.env.OPENAI_VISION_MODEL ?? process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini";
+}
+
 export const menuItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().default(""),
@@ -77,6 +82,41 @@ async function callOpenAIList(systemPrompt: string, userText: string): Promise<u
   const raw = completion.choices[0]?.message?.content?.trim() ?? '{"items":[]}';
   const parsed = JSON.parse(raw) as { items?: unknown[] } | unknown[];
   return Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
+}
+
+export async function parseMenuImage(base64: string, mimeType: string): Promise<MenuItem[]> {
+  const client = getClient();
+
+  const prompt = `Você é um parser de cardápio. Analise a imagem e extraia todos os pratos/bebidas visíveis.
+Retorne um objeto JSON com a chave "items" contendo um array no formato:
+{"items":[{"name":"Nome do Prato","description":"Descrição breve","price":00.00}]}
+Regras:
+- name: nome normalizado (Title Case)
+- description: descrição do prato ou string vazia ""
+- price: preço como número decimal (ex: 39.90). Se não houver preço visível, use 0
+- Não inclua categorias como itens, apenas pratos/bebidas reais
+- Leia todo o texto visível na imagem, incluindo preços`;
+
+  const completion = await client.chat.completions.create({
+    model: getVisionModel(),
+    max_tokens: 2048,
+    response_format: { type: "json_object" },
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" } }
+        ]
+      }
+    ]
+  });
+
+  const raw = completion.choices[0]?.message?.content?.trim() ?? '{"items":[]}';
+  const parsed = JSON.parse(raw) as { items?: unknown[] } | unknown[];
+  const result = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
+  const items = z.array(menuItemSchema).parse(result);
+  return items.map((item) => ({ ...item, name: normalizeName(item.name) }));
 }
 
 export async function parseMenuText(rawText: string): Promise<MenuItem[]> {
