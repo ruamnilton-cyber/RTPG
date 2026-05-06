@@ -347,13 +347,10 @@ router.post("/import-menu", requireRole("ADMIN"), async (req, res) => {
   let skipped = 0;
   const results: Array<{ name: string; action: "created" | "updated" | "skipped"; id: string }> = [];
 
+  const existingProducts = await prisma.product.findMany({ where: { barId: req.barId! }, select: { id: true, name: true, salePrice: true, description: true } });
+
   for (const item of parsed) {
-    const existing = await prisma.product.findFirst({
-      where: {
-        barId: req.barId!,
-        name: { equals: item.name, mode: "insensitive" }
-      }
-    });
+    const existing = existingProducts.find(p => p.name.toLowerCase() === item.name.toLowerCase());
 
     if (existing) {
       if (item.price > 0 && Number(existing.salePrice) !== item.price) {
