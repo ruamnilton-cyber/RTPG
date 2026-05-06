@@ -12,6 +12,7 @@ const subNav = [
   { to: "/painel-dono/estoque", label: "Estoque" },
   { to: "/painel-dono/dre", label: "DRE" },
   { to: "/painel-dono/whatsapp", label: "WhatsApp" },
+  { to: "/painel-dono/ia-import", label: "🤖 Importar IA" },
   { to: "/painel-dono/modulos", label: "Modulos" }
 ];
 
