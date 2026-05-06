@@ -1,21 +1,4 @@
-import OpenAI from "openai";
 import { z } from "zod";
-
-function getClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY não configurada. Adicione a chave no arquivo .env.");
-  }
-  return new OpenAI({ apiKey });
-}
-
-function getModel() {
-  return process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini";
-}
-
-function getVisionModel() {
-  return process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini";
-}
 
 export const menuItemSchema = z.object({
   name: z.string().min(1),
@@ -32,6 +15,20 @@ export const invoiceItemSchema = z.object({
 
 export type MenuItem = z.infer<typeof menuItemSchema>;
 export type InvoiceItem = z.infer<typeof invoiceItemSchema>;
+
+function getApiKey() {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("OPENAI_API_KEY não configurada no servidor. Adicione a variável de ambiente.");
+  return key;
+}
+
+function getTextModel() {
+  return process.env.OPENAI_MENU_IMPORT_MODEL ?? "gpt-4.1-mini";
+}
+
+function getVisionModel() {
+  return process.env.OPENAI_VISION_MODEL ?? "gpt-4o-mini";
+}
 
 function normalizeName(name: string) {
   return name
@@ -50,52 +47,50 @@ function extractJson(raw: string): unknown {
   return JSON.parse(jsonStr.trim());
 }
 
-async function callOpenAI(systemPrompt: string, userText: string): Promise<string> {
-  const client = getClient();
-  const completion = await client.chat.completions.create({
-    model: getModel(),
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userText }
-    ],
-    temperature: 0,
-    response_format: { type: "json_object" }
-  });
-
-  return completion.choices[0]?.message?.content?.trim() ?? "{}";
+async function getOpenAI() {
+  // Dynamic import avoids breaking catalog routes at startup if the package is missing
+  const { default: OpenAI } = await import("openai");
+  return new OpenAI({ apiKey: getApiKey() });
 }
 
-async function callOpenAIList(systemPrompt: string, userText: string): Promise<unknown> {
-  const client = getClient();
-  // Use a wrapper so json_object mode works (it requires an object at top level)
-  const completion = await client.chat.completions.create({
-    model: getModel(),
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userText }
-    ],
-    temperature: 0,
-    response_format: { type: "json_object" }
-  });
+async function chatComplete(model: string, messages: object[], useJsonMode = true): Promise<string> {
+  const client = await getOpenAI();
+  const params: Record<string, unknown> = { model, max_tokens: 2048, messages, temperature: 0 };
+  if (useJsonMode) params.response_format = { type: "json_object" };
+  const completion = await (client.chat.completions.create as (p: Record<string, unknown>) => Promise<{ choices: Array<{ message: { content: string | null } }> }>)(params);
+  return completion.choices[0]?.message?.content?.trim() ?? '{"items":[]}';
+}
 
-  const raw = completion.choices[0]?.message?.content?.trim() ?? '{"items":[]}';
-  const parsed = JSON.parse(raw) as { items?: unknown[] } | unknown[];
-  return Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
+export async function parseMenuText(rawText: string): Promise<MenuItem[]> {
+  const system = `Você é um parser de cardápio. Analise o texto e extraia todos os pratos/bebidas.
+Retorne um objeto JSON com a chave "items":
+{"items":[{"name":"Nome","description":"Descrição","price":0.00}]}
+- name: Title Case, sem caracteres extras
+- description: descrição ou ""
+- price: número decimal (0 se não houver)
+- Ignore linhas de categoria, só extraia itens reais`;
+
+  const raw = await chatComplete(getTextModel(), [
+    { role: "system", content: system },
+    { role: "user", content: rawText }
+  ]);
+
+  const parsed = JSON.parse(raw) as { items?: unknown[] };
+  const result = parsed.items ?? [];
+  const items = z.array(menuItemSchema).parse(result);
+  return items.map((item) => ({ ...item, name: normalizeName(item.name) }));
 }
 
 export async function parseMenuImage(base64: string, mimeType: string): Promise<MenuItem[]> {
-  const client = getClient();
-
   const prompt = `Você é um parser de cardápio. Analise a imagem e extraia todos os pratos/bebidas visíveis.
-Retorne SOMENTE um JSON válido com a chave "items", sem texto adicional:
-{"items":[{"name":"Nome do Prato","description":"Descrição breve","price":00.00}]}
-Regras:
-- name: nome normalizado (Title Case)
-- description: descrição do prato ou string vazia ""
-- price: preço como número decimal (ex: 39.90). Se não houver preço visível, use 0
-- Não inclua categorias, apenas pratos/bebidas reais
-- Leia todo o texto visível na imagem, incluindo preços`;
+Retorne SOMENTE JSON válido, sem texto extra:
+{"items":[{"name":"Nome","description":"Descrição","price":0.00}]}
+- name: Title Case
+- description: descrição ou ""
+- price: número decimal. Se não visível, use 0
+- Leia todo texto da imagem incluindo preços`;
 
+  const client = await getOpenAI();
   const completion = await client.chat.completions.create({
     model: getVisionModel(),
     max_tokens: 2048,
@@ -117,42 +112,31 @@ Regras:
     const parsed = extractJson(raw) as { items?: unknown[] } | unknown[];
     result = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown[] }).items ?? [];
   } catch {
-    console.error("[AI] Resposta bruta da visão:", raw);
-    throw new Error("A IA não conseguiu estruturar os itens da imagem. Tente uma foto mais nítida ou use o modo texto.");
+    console.error("[AI Vision] Resposta bruta:", raw);
+    throw new Error("A IA não conseguiu estruturar os itens da imagem. Tente foto mais nítida ou use o modo texto.");
   }
 
   const items = z.array(menuItemSchema).parse(result);
   return items.map((item) => ({ ...item, name: normalizeName(item.name) }));
 }
 
-export async function parseMenuText(rawText: string): Promise<MenuItem[]> {
-  const system = `Você é um parser de cardápio. Analise o texto e extraia todos os pratos/bebidas.
-Retorne um objeto JSON com a chave "items" contendo um array no formato:
-{"items":[{"name":"Nome do Prato","description":"Descrição breve","price":00.00}]}
-Regras:
-- name: nome normalizado (Title Case, sem caracteres especiais extras)
-- description: descrição do prato ou string vazia ""
-- price: preço como número decimal (ex: 39.90). Se não houver preço, use 0
-- Não inclua categorias como itens, apenas pratos/bebidas reais`;
-
-  const result = await callOpenAIList(system, rawText) as unknown[];
-  const items = z.array(menuItemSchema).parse(result);
-  return items.map((item) => ({ ...item, name: normalizeName(item.name) }));
-}
-
 export async function parseInvoiceText(rawText: string): Promise<InvoiceItem[]> {
-  const system = `Você é um parser de nota fiscal / nota de compra. Analise o texto e extraia todos os produtos/insumos.
-Retorne um objeto JSON com a chave "items" contendo um array no formato:
-{"items":[{"product":"Nome do Produto","quantity":0,"unit_cost":0.00,"total_cost":0.00}]}
-Regras:
-- product: nome normalizado do insumo/produto (Title Case)
-- quantity: quantidade numérica positiva
-- unit_cost: custo unitário como número decimal
-- total_cost: custo total (quantity * unit_cost). Se não disponível, calcule.
-- Ignore linhas de totais gerais, impostos e cabeçalhos
-- Extraia apenas itens de produto individuais`;
+  const system = `Você é um parser de nota fiscal. Analise o texto e extraia todos os produtos/insumos.
+Retorne um objeto JSON com a chave "items":
+{"items":[{"product":"Nome","quantity":0,"unit_cost":0.00,"total_cost":0.00}]}
+- product: Title Case
+- quantity: número positivo
+- unit_cost: custo unitário decimal
+- total_cost: quantity * unit_cost
+- Ignore totais gerais, impostos e cabeçalhos`;
 
-  const result = await callOpenAIList(system, rawText) as unknown[];
+  const raw = await chatComplete(getTextModel(), [
+    { role: "system", content: system },
+    { role: "user", content: rawText }
+  ]);
+
+  const parsed = JSON.parse(raw) as { items?: unknown[] };
+  const result = parsed.items ?? [];
   const items = z.array(invoiceItemSchema).parse(result);
   return items.map((item) => ({
     ...item,
