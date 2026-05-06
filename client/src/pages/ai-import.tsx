@@ -127,6 +127,28 @@ export function AiImportPage() {
     }
   }
 
+  async function handleMenuConfirm() {
+    if (!menuImage && menuText.trim().length < 5) return;
+    setMenuLoading(true);
+    setMenuError("");
+    try {
+      const body = menuImage
+        ? { image: menuImage.base64, imageMime: menuImage.mime, dryRun: false }
+        : { text: menuText, dryRun: false };
+      const data = await apiRequest<MenuImportResponse>("/catalog/import-menu", {
+        method: "POST",
+        token,
+        body
+      });
+      setMenuResult(data);
+      setMenuDry(false);
+    } catch (err) {
+      setMenuError(err instanceof Error ? err.message : "Erro ao salvar.");
+    } finally {
+      setMenuLoading(false);
+    }
+  }
+
   async function handleInvoiceSubmit(e: FormEvent) {
     e.preventDefault();
     setInvoiceLoading(true);
@@ -288,6 +310,20 @@ export function AiImportPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+              {menuDry && menuResult.items.length > 0 && !menuResult.results && (
+                <button
+                  className="btn-primary w-full"
+                  disabled={menuLoading}
+                  onClick={handleMenuConfirm}
+                >
+                  {menuLoading ? "⏳ Salvando..." : `Confirmar importação (${menuResult.items.length} itens)`}
+                </button>
+              )}
+              {menuResult.results && menuResult.saved + menuResult.updated > 0 && (
+                <div className="rounded-2xl bg-green-50 px-4 py-3 text-sm text-green-800 font-semibold">
+                  ✅ {menuResult.saved} criados e {menuResult.updated} atualizados no cardápio.
                 </div>
               )}
             </>
