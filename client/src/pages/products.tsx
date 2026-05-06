@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/common";
 import { apiRequest } from "../lib/api";
 import { formatMoney } from "../lib/format";
@@ -39,6 +40,7 @@ function fileToDataUrl(file: File) {
 
 export function ProductsPage() {
   const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
@@ -173,6 +175,18 @@ export function ProductsPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Produtos vendidos" subtitle="Grade visual por categoria, com filtros rápidos, imagem e ações de administração." />
+
+      {user?.role === "ADMIN" && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="btn-primary flex items-center gap-2"
+            onClick={() => navigate("../ia-import")}
+          >
+            🤖 Importar cardápio por IA
+          </button>
+        </div>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[0.92fr_1.08fr]">
         <div className="card space-y-4">

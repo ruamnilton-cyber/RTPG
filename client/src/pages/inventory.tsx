@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { PageHeader } from "../components/common";
 import { apiRequest } from "../lib/api";
 import { formatDate, formatMoney } from "../lib/format";
@@ -10,6 +11,7 @@ type Movement = { id: string; type: string; quantity: number; previousStock: num
 
 export function InventoryPage() {
   const { token, user } = useAuth();
+  const navigate = useNavigate();
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [movements, setMovements] = useState<Movement[]>([]);
@@ -67,6 +69,18 @@ export function InventoryPage() {
   return (
     <div className="space-y-5">
       <PageHeader title="Estoque e compras" subtitle="Entradas, ajustes manuais e histórico de movimentações." />
+
+      {user?.role === "ADMIN" && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            className="btn-primary flex items-center gap-2"
+            onClick={() => navigate("../ia-import")}
+          >
+            🤖 Importar nota fiscal por IA
+          </button>
+        </div>
+      )}
       <div className="grid gap-5 xl:grid-cols-2">
         <form onSubmit={handlePurchase} className="card space-y-3">
           <h3 className="text-lg font-bold">Registrar compra</h3>
